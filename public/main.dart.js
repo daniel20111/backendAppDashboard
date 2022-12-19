@@ -22973,7 +22973,7 @@ if(typeof print=="function"){print(a)
 return}throw"Unable to print message: "+String(a)},
 aqd(){var s,r=$.w0().CN$
 r===$&&A.b()
-r.o0$="http://192.168.0.4:8080/api"
+r.o0$="https://web-tesis-dashboard.herokuapp.com/api"
 s=A.cf(J.bf($.t3.aB().a,"token"))
 r.sOH(0,A.aB(["x-token",s==null?"":s],t.N,t.z))},
 qP(a){return A.aDr(a)},
