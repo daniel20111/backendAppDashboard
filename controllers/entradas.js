@@ -1,66 +1,98 @@
 const { response } = require("express");
-const { Movimiento } = require("../models");
+const { Movimiento, Stock } = require("../models");
 
 const obtenerEntradas = async (req, res = response) => {
-  //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true, movimiento: 'Entrada' };
+	//const { limite = 10, desde = 0 } = req.query;
+	const query = { estado: true, movimiento: "Entrada" };
 
-  const [total, entradas] = await Promise.all([
-    Movimiento.countDocuments(query),
-    Movimiento.find(query)
-      .sort('-fecha')
-      .populate("usuario", "nombre")
-      .populate("producto", "nombre"),
-    //.skip(Number(desde))
-    //.limit(Number(limite)),
-  ]);
+	const [total, entradas] = await Promise.all([
+		Movimiento.countDocuments(query),
+		Movimiento.find(query)
+			.sort("-fecha")
+			.populate("usuario", "nombre")
+			.populate("producto", "nombre"),
+		//.skip(Number(desde))
+		//.limit(Number(limite)),
+	]);
 
-  res.json({
-    total,
-    entradas,
-  });
+	res.json({
+		total,
+		entradas,
+	});
 };
 
 const crearEntrada = async (req, res = response) => {
-  const { estado, usuario, ...body } = req.body;
+	const { estado, usuario, ...body } = req.body;
 
-  // Generar la data a guardar
-  const data = {
-    ...body,
-    usuario: req.usuario._id,
-    cantidad: body.cantidad,
-    movimiento: 'Entrada'
-  };
+	const query = { sucursal: body.sucursal._id, producto: body.producto._id };
 
-  const entrada = new Movimiento(data);
-    
-  // Guardar DB
-  const nuevaEntrada = await entrada.save();
-  await nuevaEntrada
-    .populate("usuario", "nombre")
-    .populate("producto", "nombre")
-    .execPopulate();
+	let stock = await Stock.findOne(query);
 
-  res.status(201).json(nuevaEntrada);
+	if (!stock) {
+		const data1 = {
+			...body,
+			cantidad: 0,
+		};
+
+		const newStock = new Stock(data1);
+		await newStock.save();
+	}
+
+	// Generar la data a guardar
+	const data = {
+		...body,
+		usuario: req.usuario._id,
+		cantidad: body.cantidad,
+	};
+
+	const entrada = new Movimiento(data);
+
+	// Guardar DB
+	const nuevaEntrada = await entrada.save();
+	await nuevaEntrada
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.populate("sucursal", "definicion")
+		.execPopulate();
+
+	res.status(201).json(nuevaEntrada);
 };
 
-/*const actualizarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const { estado, usuario, ...data } = req.body;
+const actualizarEntrada = async (req, res = response) => {
+	const { id } = req.params;
+	const { estado, usuario, ...data } = req.body;
 
-  data.usuario = req.usuario._id;
+	data.verificado_por = req.usuario._id;
 
-  const producto = await Producto.findByIdAndUpdate(id, data, { new: true });
+	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
+		new: true,
+	});
 
-  await producto
-    .populate("usuario", "nombre")
-    .populate("categoria", "nombre")
-    .execPopulate();
+	const query = {
+		sucursal: movimiento.sucursal._id,
+		producto: movimiento.producto._id,
+	};
 
-  res.json(producto);
+	const stock = await Stock.findOne(query);
+
+	const saldo = stock.cantidad + movimiento.cantidad;
+
+	const data1 = {
+		cantidad: saldo,
+	};
+
+	await stock.update(data1);
+
+	await movimiento
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.populate("sucursal", "definicion")
+		.execPopulate();
+
+	res.json(movimiento);
 };
 
-const borrarProducto = async (req, res = response) => {
+/*const borrarProducto = async (req, res = response) => {
   const { id } = req.params;
   const productoBorrado = await Producto.findByIdAndUpdate(
     id,
@@ -72,6 +104,7 @@ const borrarProducto = async (req, res = response) => {
 };*/
 
 module.exports = {
-  obtenerEntradas,
-  crearEntrada,
+	obtenerEntradas,
+	actualizarEntrada,
+	crearEntrada,
 };

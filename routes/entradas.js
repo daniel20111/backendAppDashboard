@@ -4,10 +4,14 @@ const { check } = require("express-validator");
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
 const {
-  existeCategoriaPorId,
-  existeProductoPorId,
+	existeCategoriaPorId,
+	existeProductoPorId,
 } = require("../helpers/db-validators");
-const { obtenerEntradas, crearEntrada } = require("../controllers/entradas");
+const {
+	obtenerEntradas,
+	crearEntrada,
+	actualizarEntrada,
+} = require("../controllers/entradas");
 
 const router = Router();
 
@@ -20,26 +24,28 @@ router.get("/", obtenerEntradas);
 
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(
-  "/",
-  [
-    validarJWT,
-    check("producto", "No es un id de Mongo").isMongoId(),
-    check("producto").custom(existeProductoPorId),
-    validarCampos,
-  ],
-  crearEntrada
+	"/",
+	[
+		validarJWT,
+		check("producto", "No es un id de Mongo").isMongoId(),
+		check("producto").custom(existeProductoPorId),
+		validarCampos,
+	],
+	crearEntrada
 );
 
 // Actualizar - privado - cualquiera con token válido
-/*router.put('/:id',[
-    validarJWT,
-    // check('categoria','No es un id de Mongo').isMongoId(),
-    check('id').custom( existeProductoPorId ),
-    validarCampos
-], actualizarProducto );
+router.put(
+	"/:id",
+	[
+		validarJWT,
+		// check('categoria','No es un id de Mongo').isMongoId(),
+	],
+	actualizarEntrada
+);
 
 // Borrar una categoria - Admin
-router.delete('/:id',[
+/*router.delete('/:id',[
     validarJWT,
     esAdminRole,
     check('id', 'No es un id de Mongo válido').isMongoId(),
