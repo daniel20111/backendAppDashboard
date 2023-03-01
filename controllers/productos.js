@@ -8,6 +8,7 @@ const obtenerProductos = async (req, res = response) => {
   const [total, productos] = await Promise.all([
     Producto.countDocuments(query),
     Producto.find(query)
+      .sort('-fecha')
       .populate("usuario", "nombre")
       .populate("categoria", "nombre"),
     //.skip(Number(desde))

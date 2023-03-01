@@ -37,4 +37,4 @@ MovimientoSchema.methods.toJSON = function () {
   return data;
 };
 
-module.exports = model("Entrada", MovimientoSchema);
+module.exports = model("Movimiento", MovimientoSchema);

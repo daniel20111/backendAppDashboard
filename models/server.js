@@ -8,19 +8,20 @@ class Server {
   constructor() {
     this.app = express();
     this.port = process.env.PORT;
-    process.env.TZ = "Asia/Tehran";
 
     this.paths = {
-      auth: "/api/auth",
-      buscar: "/api/buscar",
-      categorias: "/api/categorias",
-      productos: "/api/productos",
-      usuarios: "/api/usuarios",
-      uploads: "/api/uploads",
-      entradas: "/api/entradas",
-      salidas: "/api/salidas",
-      traspasos: "/api/traspasos",
-    };
+			auth: "/api/auth",
+			buscar: "/api/buscar",
+			categorias: "/api/categorias",
+			productos: "/api/productos",
+			usuarios: "/api/usuarios",
+			uploads: "/api/uploads",
+			entradas: "/api/entradas",
+			salidas: "/api/salidas",
+			traspasos: "/api/traspasos",
+			movimientos: "/api/movimientos",
+			sucursales: "/api/sucursales",
+		};
 
     // Conectar a base de datos
     this.conectarDB();
@@ -66,6 +67,8 @@ class Server {
     this.app.use(this.paths.entradas, require("../routes/entradas"));
     this.app.use(this.paths.salidas, require("../routes/salidas"));
     this.app.use(this.paths.traspasos, require("../routes/traspasos"));
+    this.app.use(this.paths.movimientos, require("../routes/movimientos"));
+    this.app.use(this.paths.sucursales, require("../routes/sucursales"));
   }
 
   listen() {

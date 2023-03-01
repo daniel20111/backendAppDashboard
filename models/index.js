@@ -6,6 +6,9 @@ const Usuario = require("./usuario");
 const Entrada = require("./entrada");
 const Salida = require("./salida");
 const Traspaso = require("./traspaso");
+const Movimiento = require("./movimiento");
+const Sucursal = require("./sucursal");
+const Stock = require("./stock");
 
 module.exports = {
   Categoria,
@@ -16,4 +19,7 @@ module.exports = {
   Entrada,
   Salida,
   Traspaso,
+  Movimiento,
+  Sucursal,
+  Stock
 };

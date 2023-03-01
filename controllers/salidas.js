@@ -1,13 +1,14 @@
 const { response } = require("express");
-const { Salida } = require("../models");
+const { Movimiento } = require("../models");
 
 const obtenerSalidas = async (req, res = response) => {
   //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true };
+  const query = { estado: true, movimiento: 'Salida' };
 
   const [total, salidas] = await Promise.all([
-    Salida.countDocuments(query),
-    Salida.find(query)
+    Movimiento.countDocuments(query),
+    Movimiento.find(query)
+      .sort('-fecha')
       .populate("usuario", "nombre")
       .populate("producto", "nombre"),
     //.skip(Number(desde))
@@ -28,9 +29,10 @@ const crearSalida = async (req, res = response) => {
     ...body,
     usuario: req.usuario._id,
     cantidad: body.cantidad,
+    movimiento: 'Salida'
   };
 
-  const salida = new Salida(data);
+  const salida = new Movimiento(data);
 
   // Guardar DB
   const nuevaSalida = await salida.save();

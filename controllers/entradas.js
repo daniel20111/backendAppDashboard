@@ -1,13 +1,14 @@
 const { response } = require("express");
-const { Entrada } = require("../models");
+const { Movimiento } = require("../models");
 
 const obtenerEntradas = async (req, res = response) => {
   //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true };
+  const query = { estado: true, movimiento: 'Entrada' };
 
   const [total, entradas] = await Promise.all([
-    Entrada.countDocuments(query),
-    Entrada.find(query)
+    Movimiento.countDocuments(query),
+    Movimiento.find(query)
+      .sort('-fecha')
       .populate("usuario", "nombre")
       .populate("producto", "nombre"),
     //.skip(Number(desde))
@@ -28,9 +29,10 @@ const crearEntrada = async (req, res = response) => {
     ...body,
     usuario: req.usuario._id,
     cantidad: body.cantidad,
+    movimiento: 'Entrada'
   };
 
-  const entrada = new Entrada(data);
+  const entrada = new Movimiento(data);
     
   // Guardar DB
   const nuevaEntrada = await entrada.save();
