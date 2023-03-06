@@ -2,46 +2,45 @@ const { response } = require("express");
 const { Movimiento } = require("../models");
 
 const obtenerSalidas = async (req, res = response) => {
-  //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true, movimiento: 'Salida' };
+	//const { limite = 10, desde = 0 } = req.query;
+	const query = { estado: true, movimiento: "Salida" };
 
-  const [total, salidas] = await Promise.all([
-    Movimiento.countDocuments(query),
-    Movimiento.find(query)
-      .sort('-fecha')
-      .populate("usuario", "nombre")
-      .populate("producto", "nombre"),
-    //.skip(Number(desde))
-    //.limit(Number(limite)),
-  ]);
+	const [total, salidas] = await Promise.all([
+		Movimiento.countDocuments(query),
+		Movimiento.find(query)
+			.sort("-fecha")
+			.populate("usuario", "nombre")
+			.populate("producto", "nombre"),
+		//.skip(Number(desde))
+		//.limit(Number(limite)),
+	]);
 
-  res.json({
-    total,
-    salidas,
-  });
+	res.json({
+		total,
+		salidas,
+	});
 };
 
 const crearSalida = async (req, res = response) => {
-  const { estado, usuario, ...body } = req.body;
+	const { estado, usuario, ...body } = req.body;
 
-  // Generar la data a guardar
-  const data = {
-    ...body,
-    usuario: req.usuario._id,
-    cantidad: body.cantidad,
-    movimiento: 'Salida'
-  };
+	// Generar la data a guardar
+	const data = {
+		...body,
+		usuario: req.usuario._id,
+		cantidad: body.cantidad,
+	};
 
-  const salida = new Movimiento(data);
+	const salida = new Movimiento(data);
 
-  // Guardar DB
-  const nuevaSalida = await salida.save();
-  await nuevaSalida
-    .populate("usuario", "nombre")
-    .populate("producto", "nombre")
-    .execPopulate();
+	// Guardar DB
+	const nuevaSalida = await salida.save();
+	await nuevaSalida
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.execPopulate();
 
-  res.status(201).json(nuevaSalida);
+	res.status(201).json(nuevaSalida);
 };
 
 /*const actualizarProducto = async (req, res = response) => {
@@ -72,6 +71,6 @@ const borrarProducto = async (req, res = response) => {
 };*/
 
 module.exports = {
-  obtenerSalidas,
-  crearSalida,
+	obtenerSalidas,
+	crearSalida,
 };
