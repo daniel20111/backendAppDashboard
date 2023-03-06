@@ -1,11 +1,12 @@
 const { Router } = require("express");
-const { check } = require("express-validator");
+const { check, body } = require("express-validator");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
 const {
-  existeCategoriaPorId,
-  existeProductoPorId,
+	existeCategoriaPorId,
+	existeProductoPorId,
+	existeStock,
 } = require("../helpers/db-validators");
 const { obtenerSalidas, crearSalida } = require("../controllers/salidas");
 
@@ -20,14 +21,15 @@ router.get("/", obtenerSalidas);
 
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(
-  "/",
-  [
-    validarJWT,
-    check("producto", "No es un id de Mongo").isMongoId(),
-    check("producto").custom(existeProductoPorId),
-    validarCampos,
-  ],
-  crearSalida
+	"/",
+	[
+		validarJWT,
+		check("producto", "No es un id de Mongo").isMongoId(),
+		check("producto").custom(existeProductoPorId),
+		body().custom(existeStock),
+		validarCampos,
+	],
+	crearSalida
 );
 
 // Actualizar - privado - cualquiera con token válido
