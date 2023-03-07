@@ -11,6 +11,7 @@ const {
 	obtenerEntradas,
 	crearEntrada,
 	actualizarEntrada,
+	obtenerEntrada,
 } = require("../controllers/entradas");
 
 const router = Router();
@@ -21,6 +22,9 @@ const router = Router();
 
 //  Obtener todas las categorias - publico
 router.get("/", obtenerEntradas);
+
+// Obtener entrada por id
+router.get("/:id", obtenerEntrada);
 
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(

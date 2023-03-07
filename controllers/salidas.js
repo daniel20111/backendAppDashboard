@@ -3,7 +3,7 @@ const { Movimiento } = require("../models");
 
 const obtenerSalidas = async (req, res = response) => {
 	//const { limite = 10, desde = 0 } = req.query;
-	const query = { estado: true, movimiento: "Salida" };
+	const query = { estado: true, movimiento: "SALIDA" };
 
 	const [total, salidas] = await Promise.all([
 		Movimiento.countDocuments(query),
@@ -19,6 +19,18 @@ const obtenerSalidas = async (req, res = response) => {
 		total,
 		salidas,
 	});
+};
+
+const obtenerSalida = async (req, res = response) => {
+	const { id } = req.params;
+
+	const entrada = await Movimiento.findById(id)
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.populate("sucursal", "definicion")
+		.populate("verificado_por", "nombre");
+
+	res.json(entrada);
 };
 
 const crearSalida = async (req, res = response) => {
@@ -43,23 +55,41 @@ const crearSalida = async (req, res = response) => {
 	res.status(201).json(nuevaSalida);
 };
 
-/*const actualizarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const { estado, usuario, ...data } = req.body;
+const actualizarSalida = async (req, res = response) => {
+	const { id } = req.params;
+	const { estado, usuario, ...data } = req.body;
 
-  data.usuario = req.usuario._id;
+	data.verificado_por = req.usuario._id;
 
-  const producto = await Producto.findByIdAndUpdate(id, data, { new: true });
+	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
+		new: true,
+	});
 
-  await producto
-    .populate("usuario", "nombre")
-    .populate("categoria", "nombre")
-    .execPopulate();
+	const query = {
+		sucursal: movimiento.sucursal._id,
+		producto: movimiento.producto._id,
+	};
 
-  res.json(producto);
+	const stock = await Stock.findOne(query);
+
+	const saldo = stock.cantidad - movimiento.cantidad;
+
+	const data1 = {
+		cantidad: saldo,
+	};
+
+	await stock.update(data1);
+
+	await movimiento
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.populate("sucursal", "definicion")
+		.execPopulate();
+
+	res.json(movimiento);
 };
 
-const borrarProducto = async (req, res = response) => {
+/*const borrarProducto = async (req, res = response) => {
   const { id } = req.params;
   const productoBorrado = await Producto.findByIdAndUpdate(
     id,
@@ -72,5 +102,6 @@ const borrarProducto = async (req, res = response) => {
 
 module.exports = {
 	obtenerSalidas,
+	actualizarSalida,
 	crearSalida,
 };

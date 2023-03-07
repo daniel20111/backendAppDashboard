@@ -21,6 +21,18 @@ const obtenerEntradas = async (req, res = response) => {
 	});
 };
 
+const obtenerEntrada = async (req, res = response) => {
+	const { id } = req.params;
+
+	const entrada = await Movimiento.findById(id)
+		.populate("usuario", "nombre")
+		.populate("producto", "nombre")
+		.populate("sucursal", "definicion")
+		.populate("verificado_por", "nombre");
+
+	res.json(entrada);
+};
+
 const crearEntrada = async (req, res = response) => {
 	const { estado, usuario, ...body } = req.body;
 
@@ -105,6 +117,7 @@ const actualizarEntrada = async (req, res = response) => {
 
 module.exports = {
 	obtenerEntradas,
+	obtenerEntrada,
 	actualizarEntrada,
 	crearEntrada,
 };
