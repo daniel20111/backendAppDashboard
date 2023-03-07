@@ -1,80 +1,117 @@
 const { response } = require("express");
-const { Traspaso } = require("../models");
+const { Traspaso, Stock, Movimiento } = require("../models");
 const { Entrada } = require("../models");
 const { Salida } = require("../models");
 
 const obtenerTraspasos = async (req, res = response) => {
-  //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true };
+	//const { limite = 10, desde = 0 } = req.query;
+	const query = { estado: true };
 
-  const [total, traspasos] = await Promise.all([
-    Traspaso.countDocuments(query),
-    Traspaso.find(query)
-      .populate("usuario", "nombre")
-      .populate({
-        path: "entradas",
-        select: "producto cantidad",
-        populate: { path: "producto", model: "Producto", select: "nombre" },
-      })
-      .populate({
-        path: "salidas",
-        select: "producto cantidad",
-        populate: { path: "producto", model: "Producto", select: "nombre" },
-      }),
-    //.skip(Number(desde))
-    //.limit(Number(limite)),
-  ]);
+	const [total, traspasos] = await Promise.all([
+		Traspaso.countDocuments(query),
+		Traspaso.find(query)
+			.populate("usuario", "nombre")
+			.populate({
+				path: "entradas",
+				select: "producto cantidad",
+				populate: { path: "producto", model: "Producto", select: "nombre" },
+			})
+			.populate({
+				path: "salidas",
+				select: "producto cantidad",
+				populate: { path: "producto", model: "Producto", select: "nombre" },
+			}),
+		//.skip(Number(desde))
+		//.limit(Number(limite)),
+	]);
 
-  res.json({
-    total,
-    traspasos,
-  });
+	res.json({
+		total,
+		traspasos,
+	});
 };
 
 const crearTraspaso = async (req, res = response) => {
-  const { estado, usuario, ...body } = req.body;
+	const { estado, usuario, ...body } = req.body;
 
-  // Generar la data a guardar
-  let total = Object.keys(body.productos).length;
-  const arr = [];
+	// Generar la data a guardar
+	let total = Object.keys(body.productos).length;
+	const arrEntradas = [];
+	const arrSalidas = [];
 
-  for (let index = 0; index < total; index++) {
-    const data2 = {
-      usuario: req.usuario._id,
-      cantidad: body.productos[index].cantidad,
-      producto: body.productos[index].producto,
-    };
+	for (let index = 0; index < total; index++) {
+		const query = {
+			sucursal: body.destino,
+			producto: body.productos[index].producto,
+		};
 
-    const entrada = new Entrada(data2);
-    await entrada.save();
+		let stock = await Stock.findOne(query);
 
-    const salida = new Salida(data2);
-    await salida.save();
+		if (!stock) {
+			const data1 = {
+				sucursal: body.destino,
+				producto: body.productos[index].producto,
+				cantidad: 0,
+			};
 
-    arr.push(entrada._id);
-  }
-  console.log(arr);
+			const newStock = new Stock(data1);
+			await newStock.save();
+		}
 
-  const data = {
-    usuario: req.usuario._id,
-    entradas: arr,
-  };
+		const data2 = {
+			usuario: req.usuario._id,
+			cantidad: body.productos[index].cantidad,
+			producto: body.productos[index].producto,
+			sucursal: body.destino,
+			movimiento: "ENTRADA",
+		};
 
-  const traspaso = new Traspaso(data);
+		const entrada = new Movimiento(data2);
+		await entrada.save();
 
-  // Guardar DB
-  const nuevaTraspaso = await traspaso.save();
-  await nuevaTraspaso
-    .populate("usuario", "nombre")
-    .populate("usuario", "nombre")
-    .populate({
-      path: "entradas",
-      select: "producto cantidad",
-      populate: { path: "producto", model: "Producto", select: "nombre" },
-    })
-    .execPopulate();
+		arrEntradas.push(entrada._id);
 
-  res.status(201).json(nuevaTraspaso);
+		const data3 = {
+			usuario: req.usuario._id,
+			cantidad: body.productos[index].cantidad,
+			producto: body.productos[index].producto,
+			sucursal: body.origen,
+			movimiento: "SALIDA",
+		};
+		const salida = new Movimiento(data3);
+		await salida.save();
+
+		arrSalidas.push(salida._id);
+	}
+	console.log(arrEntradas);
+
+	const data = {
+		usuario: req.usuario._id,
+		entradas: arrEntradas,
+		salidas: arrSalidas,
+		origen: body.origen,
+		destino: body.destino,
+	};
+
+	const traspaso = new Traspaso(data);
+
+	// Guardar DB
+	const nuevaTraspaso = await traspaso.save();
+	await nuevaTraspaso
+		.populate("usuario", "nombre")
+		.populate({
+			path: "entradas",
+			select: "producto cantidad sucursal",
+			populate: { path: "producto", model: "Producto", select: "nombre" },
+		})
+		.populate({
+			path: "salidas",
+			select: "producto cantidad sucursal",
+			populate: { path: "producto", model: "Producto", select: "nombre" },
+		})
+		.execPopulate();
+
+	res.status(201).json(nuevaTraspaso);
 };
 
 /*const actualizarProducto = async (req, res = response) => {
@@ -105,6 +142,6 @@ const borrarProducto = async (req, res = response) => {
 };*/
 
 module.exports = {
-  obtenerTraspasos,
-  crearTraspaso,
+	obtenerTraspasos,
+	crearTraspaso,
 };
