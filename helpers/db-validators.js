@@ -61,6 +61,21 @@ const existeStock = async (body, { req }) => {
 	}
 };
 
+const existeStockTraspaso = async (body, { req }) => {
+	// Verificar si el correo existe
+	let total = Object.keys(body.productos).length;
+
+	const request = { sucursal: body.sucursal, producto: body.producto };
+
+	const existeStock = await Stock.findOne(request);
+	if (!existeStock) {
+		throw new Error(`El stock no existe`);
+	}
+	if (existeStock.cantidad < body.cantidad) {
+		throw new Error(`El stock no tiene suficiente cantidad`);
+	}
+};
+
 /**
  * Validar colecciones permitidas
  */
@@ -81,5 +96,6 @@ module.exports = {
 	existeUsuarioPorId,
 	existeCategoriaPorId,
 	existeProductoPorId,
+	existeStockTraspaso,
 	coleccionesPermitidas,
 };
