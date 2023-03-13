@@ -11,16 +11,6 @@ const TraspasoSchema = Schema({
 		ref: "Usuario",
 		required: true,
 	},
-	origen: {
-		type: Schema.Types.ObjectId,
-		ref: "Sucursal",
-		required: true,
-	},
-	destino: {
-		type: Schema.Types.ObjectId,
-		ref: "Sucursal",
-		required: true,
-	},
 	entradas: [
 		{
 			type: Schema.Types.ObjectId,

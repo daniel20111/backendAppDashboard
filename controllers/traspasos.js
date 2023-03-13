@@ -41,7 +41,7 @@ const crearTraspaso = async (req, res = response) => {
 
 	for (let index = 0; index < total; index++) {
 		const query = {
-			sucursal: body.destino,
+			sucursal: body.productos[index].destino,
 			producto: body.productos[index].producto,
 		};
 
@@ -49,7 +49,7 @@ const crearTraspaso = async (req, res = response) => {
 
 		if (!stock) {
 			const data1 = {
-				sucursal: body.destino,
+				sucursal: body.productos[index].destino,
 				producto: body.productos[index].producto,
 				cantidad: 0,
 			};
@@ -62,7 +62,7 @@ const crearTraspaso = async (req, res = response) => {
 			usuario: req.usuario._id,
 			cantidad: body.productos[index].cantidad,
 			producto: body.productos[index].producto,
-			sucursal: body.destino,
+			sucursal: body.productos[index].destino,
 			movimiento: "ENTRADA",
 		};
 
@@ -75,7 +75,7 @@ const crearTraspaso = async (req, res = response) => {
 			usuario: req.usuario._id,
 			cantidad: body.productos[index].cantidad,
 			producto: body.productos[index].producto,
-			sucursal: body.origen,
+			sucursal: body.productos[index].origen,
 			movimiento: "SALIDA",
 		};
 		const salida = new Movimiento(data3);
@@ -89,8 +89,6 @@ const crearTraspaso = async (req, res = response) => {
 		usuario: req.usuario._id,
 		entradas: arrEntradas,
 		salidas: arrSalidas,
-		origen: body.origen,
-		destino: body.destino,
 	};
 
 	const traspaso = new Traspaso(data);

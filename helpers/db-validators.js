@@ -1,5 +1,11 @@
 const Role = require("../models/role");
-const { Usuario, Categoria, Producto, Stock } = require("../models");
+const {
+	Usuario,
+	Categoria,
+	Producto,
+	Stock,
+	Movimiento,
+} = require("../models");
 const { query } = require("express");
 
 const esRoleValido = async (rol = "USER_ROLE") => {
@@ -51,7 +57,7 @@ const existeStock = async (body, { req }) => {
 	// Verificar si el correo existe
 
 	const request = { sucursal: body.sucursal, producto: body.producto };
-	
+
 	const existeStock = await Stock.findOne(request);
 	if (!existeStock) {
 		throw new Error(`El stock no existe`);
@@ -61,18 +67,39 @@ const existeStock = async (body, { req }) => {
 	}
 };
 
-const existeStockTraspaso = async (body, { req }) => {
+const existeStockPorId = async (id) => {
 	// Verificar si el correo existe
-	let total = Object.keys(body.productos).length;
+	const existeMovimiento = await Movimiento.findById(id);
 
-	const request = { sucursal: body.sucursal, producto: body.producto };
+	const request = {
+		sucursal: existeMovimiento.sucursal,
+		producto: existeMovimiento.producto,
+	};
 
 	const existeStock = await Stock.findOne(request);
-	if (!existeStock) {
-		throw new Error(`El stock no existe`);
-	}
-	if (existeStock.cantidad < body.cantidad) {
+
+	if (existeStock.cantidad < existeMovimiento.cantidad) {
 		throw new Error(`El stock no tiene suficiente cantidad`);
+	}
+};
+
+const existeCantidadTraspaso = async (body, { req }) => {
+	// Verificar si el correo existe
+	const total = Object.keys(body.productos).length;
+
+	const comp = 0;
+
+	for (let index = 0; index < total; index++) {
+		const query = {
+			sucursal: body.origen,
+			producto: body.productos[index].producto,
+		};
+
+		let stock = await Stock.findOne(query);
+
+		if (stock.cantidad < body.productos[index].cantidad) {
+			throw new Error(`No hay suficientes productos`);
+		}
 	}
 };
 
@@ -96,6 +123,7 @@ module.exports = {
 	existeUsuarioPorId,
 	existeCategoriaPorId,
 	existeProductoPorId,
-	existeStockTraspaso,
+	existeCantidadTraspaso,
 	coleccionesPermitidas,
+	existeStockPorId
 };

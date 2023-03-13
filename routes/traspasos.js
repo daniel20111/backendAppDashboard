@@ -1,11 +1,10 @@
 const { Router } = require("express");
-const { check } = require("express-validator");
+const { check, body } = require("express-validator");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
 const {
-  existeCategoriaPorId,
-  existeProductoPorId,
+	existeCantidadTraspaso,
 } = require("../helpers/db-validators");
 const { obtenerTraspasos, crearTraspaso } = require("../controllers/traspasos");
 
@@ -20,14 +19,9 @@ router.get("/", obtenerTraspasos);
 
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(
-  "/",
-  [
-    validarJWT,
-    //check("producto", "No es un id de Mongo").isMongoId(),
-    //check("producto").custom(existeProductoPorId),
-    //validarCampos,
-  ],
-  crearTraspaso
+	"/",
+	[validarJWT, body().custom(existeCantidadTraspaso)],
+	crearTraspaso
 );
 
 // Actualizar - privado - cualquiera con token válido

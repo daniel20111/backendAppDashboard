@@ -1,5 +1,5 @@
 const { response } = require("express");
-const { Movimiento } = require("../models");
+const { Movimiento, Stock } = require("../models");
 
 const obtenerSalidas = async (req, res = response) => {
 	//const { limite = 10, desde = 0 } = req.query;
@@ -41,6 +41,7 @@ const crearSalida = async (req, res = response) => {
 		...body,
 		usuario: req.usuario._id,
 		cantidad: body.cantidad,
+		movimiento: "SALIDA"
 	};
 
 	const salida = new Movimiento(data);
@@ -60,6 +61,8 @@ const actualizarSalida = async (req, res = response) => {
 	const { estado, usuario, ...data } = req.body;
 
 	data.verificado_por = req.usuario._id;
+	data.verificacion = "VERIFICADO";
+	data.fecha_verificacion = Date.now();
 
 	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
 		new: true,
@@ -102,6 +105,7 @@ const actualizarSalida = async (req, res = response) => {
 
 module.exports = {
 	obtenerSalidas,
+	obtenerSalida,
 	actualizarSalida,
 	crearSalida,
 };

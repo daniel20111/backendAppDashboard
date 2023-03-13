@@ -7,8 +7,13 @@ const {
 	existeCategoriaPorId,
 	existeProductoPorId,
 	existeStock,
+	existeStockPorId,
 } = require("../helpers/db-validators");
-const { obtenerSalidas, crearSalida, actualizarSalida } = require("../controllers/salidas");
+const {
+	obtenerSalidas,
+	crearSalida,
+	actualizarSalida,
+} = require("../controllers/salidas");
 
 const router = Router();
 
@@ -37,8 +42,8 @@ router.put(
 	"/:id",
 	[
 		validarJWT,
+		check("id").custom(existeStockPorId),
 		// check('categoria','No es un id de Mongo').isMongoId(),
-		check("id").custom(existeProductoPorId),
 		validarCampos,
 	],
 	actualizarSalida

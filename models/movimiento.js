@@ -24,6 +24,9 @@ const MovimientoSchema = Schema({
 		type: Schema.Types.ObjectId,
 		ref: "Usuario",
 	},
+	fecha_verificacion: {
+		type: Date
+	},
 	verificacion: {
 		type: String,
 		required: true,

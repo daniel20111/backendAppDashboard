@@ -55,6 +55,7 @@ const crearEntrada = async (req, res = response) => {
 		...body,
 		usuario: req.usuario._id,
 		cantidad: body.cantidad,
+		movimiento: "ENTRADA",
 	};
 
 	const entrada = new Movimiento(data);
@@ -75,6 +76,8 @@ const actualizarEntrada = async (req, res = response) => {
 	const { estado, usuario, ...data } = req.body;
 
 	data.verificado_por = req.usuario._id;
+	data.verificacion = "VERIFICADO";
+	data.fecha_verificacion = Date.now();
 
 	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
 		new: true,
