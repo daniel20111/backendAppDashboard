@@ -9,6 +9,7 @@ const Traspaso = require("./traspaso");
 const Movimiento = require("./movimiento");
 const Sucursal = require("./sucursal");
 const Stock = require("./stock");
+const Cotizacion = require("./cotizacion");
 
 module.exports = {
   Categoria,
@@ -21,5 +22,6 @@ module.exports = {
   Traspaso,
   Movimiento,
   Sucursal,
-  Stock
+  Stock,
+  Cotizacion
 };

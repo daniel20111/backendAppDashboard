@@ -3,9 +3,7 @@ const { check, body } = require("express-validator");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
-const {
-	existeCantidadTraspaso,
-} = require("../helpers/db-validators");
+const { existeCantidadTraspaso } = require("../helpers/db-validators");
 const { obtenerTraspasos, crearTraspaso } = require("../controllers/traspasos");
 
 const router = Router();
@@ -15,13 +13,11 @@ const router = Router();
  */
 
 //  Obtener todas las categorias - publico
-router.get("/", obtenerTraspasos);
+router.get("/");
 
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(
-	"/",
-	[validarJWT, body().custom(existeCantidadTraspaso)],
-	crearTraspaso
+	"/"
 );
 
 // Actualizar - privado - cualquiera con token válidoa
