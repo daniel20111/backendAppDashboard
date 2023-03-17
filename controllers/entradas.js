@@ -2,7 +2,6 @@ const { response } = require("express");
 const { Movimiento, Stock } = require("../models");
 
 const obtenerEntradas = async (req, res = response) => {
-	//const { limite = 10, desde = 0 } = req.query;
 	const query = { estado: true, movimiento: "Entrada" };
 
 	const [total, entradas] = await Promise.all([
@@ -11,8 +10,6 @@ const obtenerEntradas = async (req, res = response) => {
 			.sort("-fecha")
 			.populate("usuario", "nombre")
 			.populate("producto", "nombre"),
-		//.skip(Number(desde))
-		//.limit(Number(limite)),
 	]);
 
 	res.json({
@@ -50,7 +47,6 @@ const crearEntrada = async (req, res = response) => {
 		await newStock.save();
 	}
 
-	// Generar la data a guardar
 	const data = {
 		...body,
 		usuario: req.usuario._id,
@@ -60,7 +56,6 @@ const crearEntrada = async (req, res = response) => {
 
 	const entrada = new Movimiento(data);
 
-	// Guardar DB
 	const nuevaEntrada = await entrada.save();
 	await nuevaEntrada
 		.populate("usuario", "nombre")
@@ -106,17 +101,6 @@ const actualizarEntrada = async (req, res = response) => {
 
 	res.json(movimiento);
 };
-
-/*const borrarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const productoBorrado = await Producto.findByIdAndUpdate(
-    id,
-    { estado: false },
-    { new: true }
-  );
-
-  res.json(productoBorrado);
-};*/
 
 module.exports = {
 	obtenerEntradas,

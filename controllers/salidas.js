@@ -1,108 +1,149 @@
 const { response } = require("express");
 const { Movimiento, Stock } = require("../models");
 
+// Función para obtener todas las salidas
 const obtenerSalidas = async (req, res = response) => {
-	//const { limite = 10, desde = 0 } = req.query;
-	const query = { estado: true, movimiento: "SALIDA" };
+	try {
+		const query = { estado: true, movimiento: "SALIDA" };
 
-	const [total, salidas] = await Promise.all([
-		Movimiento.countDocuments(query),
-		Movimiento.find(query)
-			.sort("-fecha")
-			.populate("usuario", "nombre")
-			.populate("producto", "nombre"),
-		//.skip(Number(desde))
-		//.limit(Number(limite)),
-	]);
+		// Obtener el total de salidas y la lista de salidas
+		const [total, salidas] = await Promise.all([
+			Movimiento.countDocuments(query),
+			Movimiento.find(query)
+				.sort("-fecha")
+				.populate("usuario", "nombre")
+				.populate("producto", "nombre"),
+		]);
 
-	res.json({
-		total,
-		salidas,
-	});
+		// Devolver la lista de salidas y el total
+		res.json({
+			total,
+			salidas,
+		});
+	} catch (error) {
+		// Manejar posibles errores y devolver un mensaje de error
+		res.status(500).json({
+			message: "Error al obtener salidas",
+			error,
+		});
+	}
 };
 
+// Función para obtener una salida por su ID
 const obtenerSalida = async (req, res = response) => {
-	const { id } = req.params;
+	try {
+		const { id } = req.params;
 
-	const entrada = await Movimiento.findById(id)
-		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.populate("sucursal", "definicion")
-		.populate("verificado_por", "nombre");
+		// Buscar la salida por ID y poblar los campos relacionados
+		const salida = await Movimiento.findById(id)
+			.populate("usuario", "nombre")
+			.populate("producto", "nombre")
+			.populate("sucursal", "definicion")
+			.populate("verificado_por", "nombre");
 
-	res.json(entrada);
+		// Devolver la salida encontrada
+		res.json(salida);
+	} catch (error) {
+		// Manejar posibles errores y devolver un mensaje de error
+		res.status(500).json({
+			message: "Error al obtener salida",
+			error,
+		});
+	}
 };
 
+// Función para crear una nueva salida
 const crearSalida = async (req, res = response) => {
-	const { estado, usuario, ...body } = req.body;
+	try {
+		const { estado, usuario, ...body } = req.body;
 
-	// Generar la data a guardar
-	const data = {
-		...body,
-		usuario: req.usuario._id,
-		cantidad: body.cantidad,
-		movimiento: "SALIDA"
-	};
+		// Preparar la información de la nueva salida
+		const data = {
+			...body,
+			usuario: req.usuario._id,
+			cantidad: body.cantidad,
+			movimiento: "SALIDA",
+		};
 
-	const salida = new Movimiento(data);
+		// Crear una nueva instancia de Movimiento con la información proporcionada
+		const salida = new Movimiento(data);
 
-	// Guardar DB
-	const nuevaSalida = await salida.save();
-	await nuevaSalida
-		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.execPopulate();
+		// Guardar la nueva salida en la base de datos
+		const nuevaSalida = await salida.save();
+		await nuevaSalida
+			.populate("usuario", "nombre")
+			.populate("producto", "nombre")
+			.execPopulate();
 
-	res.status(201).json(nuevaSalida);
+		// Devolver una respuesta exitosa con la salida creada
+		res.status(201).json(nuevaSalida);
+	} catch (error) {
+		// Manejar posibles errores y devolver un mensaje de error
+		res.status(500).json({
+			message: "Error al crear salida",
+			error,
+		});
+	}
 };
 
+// Función para actualizar una salida
 const actualizarSalida = async (req, res = response) => {
-	const { id } = req.params;
-	const { estado, usuario, ...data } = req.body;
+	try {
+		// Obtener ID de la salida desde los parámetros de la petición
+		const { id } = req.params;
 
-	data.verificado_por = req.usuario._id;
-	data.verificacion = "VERIFICADO";
-	data.fecha_verificacion = Date.now();
+		// Obtener la información de la salida desde la petición JSON
+		const { estado, usuario, ...data } = req.body;
 
-	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
-		new: true,
-	});
+		// Agregar información adicional a la salida
+		data.verificado_por = req.usuario._id;
+		data.verificacion = "VERIFICADO";
+		data.fecha_verificacion = Date.now();
 
-	const query = {
-		sucursal: movimiento.sucursal._id,
-		producto: movimiento.producto._id,
-	};
+		// Actualizar la salida en la base de datos
+		const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
+			new: true,
+		});
 
-	const stock = await Stock.findOne(query);
+		// Crear una consulta para buscar el stock relacionado con la salida
+		const query = {
+			sucursal: movimiento.sucursal._id,
+			producto: movimiento.producto._id,
+		};
 
-	const saldo = stock.cantidad - movimiento.cantidad;
+		// Buscar el stock relacionado
+		const stock = await Stock.findOne(query);
 
-	const data1 = {
-		cantidad: saldo,
-	};
+		// Calcular el saldo del stock después de la salida
+		const saldo = stock.cantidad - movimiento.cantidad;
 
-	await stock.update(data1);
+		// Crear objeto con la nueva cantidad de stock
+		const data1 = {
+			cantidad: saldo,
+		};
 
-	await movimiento
-		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.populate("sucursal", "definicion")
-		.execPopulate();
+		// Actualizar el stock en la base de datos
+		await stock.update(data1);
 
-	res.json(movimiento);
+		// Poblar los campos relacionados antes de devolver el movimiento actualizado
+		await movimiento
+			.populate("usuario", "nombre")
+			.populate("producto", "nombre")
+			.populate("sucursal", "definicion")
+			.execPopulate();
+
+		// Devolver el movimiento actualizado
+		res.json(movimiento);
+	} catch (error) {
+		// Manejar posibles errores y devolver un mensaje de error
+		res.status(500).json({
+			message: "Error al actualizar salida",
+			error,
+		});
+	}
 };
 
-/*const borrarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const productoBorrado = await Producto.findByIdAndUpdate(
-    id,
-    { estado: false },
-    { new: true }
-  );
-
-  res.json(productoBorrado);
-};*/
-
+// Exportar las funciones para ser utilizadas en otros módulos
 module.exports = {
 	obtenerSalidas,
 	obtenerSalida,

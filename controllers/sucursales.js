@@ -2,70 +2,99 @@ const { response } = require("express");
 const { Sucursal } = require("../models");
 
 const obtenerSucursales = async (req, res = response) => {
-	//const { limite = 10, desde = 0 } = req.query;
-	const query = { estado: true };
+	try {
+		const query = { estado: true };
 
-	const [total, sucursales] = await Promise.all([
-		Sucursal.countDocuments(query),
-		Sucursal.find(query).populate("usuario", "nombre"),
-		//.skip(Number(desde))
-		//.limit(Number(limite)),
-	]);
+		const [total, sucursales] = await Promise.all([
+			Sucursal.countDocuments(query),
+			Sucursal.find(query).populate("usuario", "nombre"),
+		]);
 
-	res.json({
-		total,
-		sucursales,
-	});
+		res.json({
+			total,
+			sucursales,
+		});
+	} catch (error) {
+		res.status(500).json({
+			message: "Error al obtener sucursales",
+			error,
+		});
+	}
 };
 
 const obtenerSucursal = async (req, res = response) => {
-	const { id } = req.params;
-	const sucursal = await Sucursal.findById(id).populate("usuario", "nombre");
+	try {
+		const { id } = req.params;
+		const sucursal = await Sucursal.findById(id).populate("usuario", "nombre");
 
-	res.json(sucursal);
+		res.json(sucursal);
+	} catch (error) {
+		res.status(500).json({
+			message: "Error al obtener sucursal",
+			error,
+		});
+	}
 };
 
 const crearSucursal = async (req, res = response) => {
-	const { definicion, direccion, categoria } = req.body;
+	try {
+		const { definicion, direccion, categoria } = req.body;
 
-	// Generar la data a guardar
-	const data = {
-		definicion,
-		direccion,
-		categoria,
-		usuario: req.usuario._id,
-	};
+		const data = {
+			definicion,
+			direccion,
+			categoria,
+			usuario: req.usuario._id,
+		};
 
-	const sucursal = new Sucursal(data);
+		const sucursal = new Sucursal(data);
 
-	// Guardar DB
-	await sucursal.save();
+		await sucursal.save();
+		await sucursal.populate("usuario", "nombre").execPopulate();
 
-	await sucursal.populate("usuario", "nombre").execPopulate();
-
-	res.status(201).json(sucursal);
+		res.status(201).json(sucursal);
+	} catch (error) {
+		res.status(500).json({
+			message: "Error al crear sucursal",
+			error,
+		});
+	}
 };
 
 const actualizarSucursal = async (req, res = response) => {
-	const { id } = req.params;
-	const { estado, usuario, ...data } = req.body;
+	try {
+		const { id } = req.params;
+		const { estado, usuario, ...data } = req.body;
 
-	data.usuario = req.usuario._id;
+		data.usuario = req.usuario._id;
 
-	const sucursal = await Sucursal.findByIdAndUpdate(id, data, { new: true });
+		const sucursal = await Sucursal.findByIdAndUpdate(id, data, { new: true });
 
-	res.json(sucursal);
+		res.json(sucursal);
+	} catch (error) {
+		res.status(500).json({
+			message: "Error al actualizar sucursal",
+			error,
+		});
+	}
 };
 
 const borrarSucursal = async (req, res = response) => {
-	const { id } = req.params;
-	const sucursalBorrada = await Sucursal.findByIdAndUpdate(
-		id,
-		{ estado: false },
-		{ new: true }
-	);
+	try {
+		const { id } = req.params;
+		const sucursalBorrada = await Sucursal.findByIdAndUpdate(
+			id,
+			{ estado: false },
+			{ new: true }
+		);
 
-	res.json(sucursalBorrada);
+		res.json(sucursalBorrada);
+	} catch (error) {
+		res.status(500).json({
+			message: "Error al borrar sucursal",
+			error,
+		});
+	}
 };
 
 module.exports = {

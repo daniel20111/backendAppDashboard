@@ -1,96 +1,112 @@
 const { response } = require("express");
 const { Producto } = require("../models");
 
+// Función para obtener todos los productos
 const obtenerProductos = async (req, res = response) => {
-  //const { limite = 10, desde = 0 } = req.query;
-  const query = { estado: true };
+	//const { limite = 10, desde = 0 } = req.query;
+	const query = { estado: true };
 
-  const [total, productos] = await Promise.all([
-    Producto.countDocuments(query),
-    Producto.find(query)
-      .sort('-fecha')
-      .populate("usuario", "nombre")
-      .populate("categoria", "nombre"),
-    //.skip(Number(desde))
-    //.limit(Number(limite)),
-  ]);
+	// Obtener el total de productos y la lista de productos
+	const [total, productos] = await Promise.all([
+		Producto.countDocuments(query),
+		Producto.find(query)
+			.sort("-fecha") // Ordenar por fecha descendente
+			.populate("usuario", "nombre") // Obtener información del usuario relacionado
+			.populate("categoria", "nombre"), // Obtener información de la categoría relacionada
+		//.skip(Number(desde))
+		//.limit(Number(limite)),
+	]);
 
-  res.json({
-    total,
-    productos,
-  });
+	// Devolver el total de productos y la lista de productos
+	res.json({
+		total,
+		productos,
+	});
 };
 
+// Función para obtener un producto por su ID
 const obtenerProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const producto = await Producto.findById(id)
-    .populate("usuario", "nombre")
-    .populate("categoria", "nombre");
+	const { id } = req.params;
+	const producto = await Producto.findById(id)
+		.populate("usuario", "nombre") // Obtener información del usuario relacionado
+		.populate("categoria", "nombre"); // Obtener información de la categoría relacionada
 
-  res.json(producto);
+	// Devolver el producto
+	res.json(producto);
 };
 
+// Función para crear un nuevo producto
 const crearProducto = async (req, res = response) => {
-  const { estado, usuario, ...body } = req.body;
+	const { estado, usuario, ...body } = req.body;
 
-  const productoDB = await Producto.findOne({ nombre: body.nombre });
+	// Verificar si el producto ya existe
+	const productoDB = await Producto.findOne({ nombre: body.nombre });
 
-  if (productoDB) {
-    return res.status(400).json({
-      msg: `El producto ${productoDB.nombre}, ya existe`,
-    });
-  }
+	if (productoDB) {
+		return res.status(400).json({
+			msg: `El producto ${productoDB.nombre}, ya existe`,
+		});
+	}
 
-  // Generar la data a guardar
-  const data = {
-    ...body,
-    nombre: body.nombre,
-    usuario: req.usuario._id,
-  };
+	// Generar la data a guardar
+	const data = {
+		...body,
+		nombre: body.nombre,
+		usuario: req.usuario._id,
+	};
 
-  const producto = new Producto(data);
+	// Crear una nueva instancia de Producto
+	const producto = new Producto(data);
 
-  // Guardar DB
-  const nuevoProducto = await producto.save();
-  await nuevoProducto
-    .populate("usuario", "nombre")
-    .populate("categoria", "nombre")
-    .execPopulate();
+	// Guardar el producto en la base de datos
+	const nuevoProducto = await producto.save();
+	await nuevoProducto
+		.populate("usuario", "nombre") // Obtener información del usuario relacionado
+		.populate("categoria", "nombre") // Obtener información de la categoría relacionada
+		.execPopulate();
 
-  res.status(201).json(nuevoProducto);
+	// Devolver el producto creado
+	res.status(201).json(nuevoProducto);
 };
 
+// Función para actualizar un producto
 const actualizarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const { estado, usuario, ...data } = req.body;
+	const { id } = req.params;
+	const { estado, usuario, ...data } = req.body;
 
-  data.usuario = req.usuario._id;
+	data.usuario = req.usuario._id;
 
-  const producto = await Producto.findByIdAndUpdate(id, data, { new: true });
+	// Actualizar el producto en la base de datos
+	const producto = await Producto.findByIdAndUpdate(id, data, { new: true });
 
-  await producto
-    .populate("usuario", "nombre")
-    .populate("categoria", "nombre")
-    .execPopulate();
+	// Obtener la información actualizada del producto
+	await producto
+		.populate("usuario", "nombre") // Obtener información del usuario relacionado
+		.populate("categoria", "nombre") // Obtener información de la categoría relacionada
+		.execPopulate();
 
-  res.json(producto);
+	// Devolver el producto actualizado
+	res.json(producto);
 };
 
+// Función para borrar un producto (cambiar su estado a false)
 const borrarProducto = async (req, res = response) => {
-  const { id } = req.params;
-  const productoBorrado = await Producto.findByIdAndUpdate(
-    id,
-    { estado: false },
-    { new: true }
-  );
+	const { id } = req.params;
+	const productoBorrado = await Producto.findByIdAndUpdate(
+		id,
+		{ estado: false },
+		{ new: true }
+	);
 
-  res.json(productoBorrado);
+	// Devolver el producto borrado (con estado cambiado a false)
+	res.json(productoBorrado);
 };
 
+// Exportar las funciones para usarlas en otros módulos
 module.exports = {
-  crearProducto,
-  obtenerProductos,
-  obtenerProducto,
-  actualizarProducto,
-  borrarProducto,
+	crearProducto,
+	obtenerProductos,
+	obtenerProducto,
+	actualizarProducto,
+	borrarProducto,
 };

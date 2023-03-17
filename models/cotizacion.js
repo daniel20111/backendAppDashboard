@@ -36,6 +36,11 @@ const CotizacionSchema = Schema({
 		type: Number,
 		required: true,
 	},
+	estado: {
+		type: Boolean,
+		default: true,
+		required: true,
+	},
 });
 
 CotizacionSchema.methods.toJSON = function () {
