@@ -87,62 +87,58 @@ const crearSalida = async (req, res = response) => {
 };
 
 // Función para actualizar una salida
+
 const actualizarSalida = async (req, res = response) => {
 	try {
-		// Obtener ID de la salida desde los parámetros de la petición
 		const { id } = req.params;
-
-		// Obtener la información de la salida desde la petición JSON
 		const { estado, usuario, ...data } = req.body;
 
-		// Agregar información adicional a la salida
 		data.verificado_por = req.usuario._id;
 		data.verificacion = "VERIFICADO";
 		data.fecha_verificacion = Date.now();
 
-		// Actualizar la salida en la base de datos
 		const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
 			new: true,
 		});
 
-		// Crear una consulta para buscar el stock relacionado con la salida
 		const query = {
 			sucursal: movimiento.sucursal._id,
 			producto: movimiento.producto._id,
 		};
 
-		// Buscar el stock relacionado
 		const stock = await Stock.findOne(query);
 
-		// Calcular el saldo del stock después de la salida
 		const saldo = stock.cantidad - movimiento.cantidad;
 
-		// Crear objeto con la nueva cantidad de stock
-		const data1 = {
-			cantidad: saldo,
+		// Crear un nuevo objeto con la fecha y cantidad actuales
+		const historialItem = {
+			fecha: stock.fecha,
+			cantidad: stock.cantidad,
 		};
 
-		// Actualizar el stock en la base de datos
-		await stock.update(data1);
+		// Agregar el objeto historialItem al historial
+		stock.historial.push(historialItem);
 
-		// Poblar los campos relacionados antes de devolver el movimiento actualizado
+		// Actualizar la cantidad del stock
+		stock.cantidad = saldo;
+
+		// Guardar el documento de stock actualizado
+		await stock.save();
+
 		await movimiento
 			.populate("usuario", "nombre")
 			.populate("producto", "nombre")
 			.populate("sucursal", "definicion")
 			.execPopulate();
 
-		// Devolver el movimiento actualizado
 		res.json(movimiento);
 	} catch (error) {
-		// Manejar posibles errores y devolver un mensaje de error
 		res.status(500).json({
 			message: "Error al actualizar salida",
 			error,
 		});
 	}
 };
-
 // Exportar las funciones para ser utilizadas en otros módulos
 module.exports = {
 	obtenerSalidas,

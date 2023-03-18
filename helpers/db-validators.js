@@ -83,25 +83,49 @@ const existeStockPorId = async (id) => {
 	}
 };
 
-const existeCantidadTraspaso = async (body, { req }) => {
-	// Verificar si el correo existe
-	const total = Object.keys(body.productos).length;
+const existeCantidadTraspaso = async (body) => {
+	const { productos } = body;
+	console.log("Dentro de existeCantidadTraspaso");
+	console.log(body);
 
-	const comp = 0;
+	console.log("Iniciando la verificación de existencias de productos...");
+	let contador = 0; // Iniciamos contador en 0
 
-	for (let index = 0; index < total; index++) {
+	for (let i = 0; i < productos.length; i++) {
+		const productoObj = productos[i];
+
+		const { producto, cantidad, origen } = productoObj;
+
 		const query = {
-			sucursal: body.origen,
-			producto: body.productos[index].producto,
+			sucursal: origen,
+			producto,
 		};
 
-		let stock = await Stock.findOne(query);
+		const stock = await Stock.findOne(query);
 
-		if (stock.cantidad < body.productos[index].cantidad) {
-			throw new Error(`No hay suficientes productos`);
+		console.log(
+			`Verificando stock para el producto ${producto} en la sucursal ${origen}`
+		);
+
+		if (!stock || stock.cantidad < cantidad) {
+			console.log(
+				`Producto: ${producto}, Origen: ${origen}, Stock actual: ${
+					stock ? stock.cantidad : "No encontrado"
+				}, Cantidad solicitada: ${cantidad}`
+			);
+		} else {
+			contador++; // Aumentamos el contador en 1 si el stock puede satisfacer la cantidad solicitada
 		}
 	}
+
+	console.log(contador);
+	console.log(productos.length);
+
+	if (contador !== productos.length){
+		throw new Error("No hay suficientes productos en el stock");
+	}
 };
+
 
 /**
  * Validar colecciones permitidas
@@ -125,5 +149,5 @@ module.exports = {
 	existeProductoPorId,
 	existeCantidadTraspaso,
 	coleccionesPermitidas,
-	existeStockPorId
+	existeStockPorId,
 };

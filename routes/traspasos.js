@@ -3,9 +3,7 @@ const { check, body } = require("express-validator");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
-const {
-	existeCantidadTraspaso,
-} = require("../helpers/db-validators");
+const { existeCantidadTraspaso } = require("../helpers/db-validators");
 const { obtenerTraspasos, crearTraspaso } = require("../controllers/traspasos");
 
 const router = Router();
@@ -20,25 +18,12 @@ router.get("/", obtenerTraspasos);
 // Crear categoria - privado - cualquier persona con un token válido
 router.post(
 	"/",
-	[validarJWT, body().custom(existeCantidadTraspaso)],
+	[
+		validarJWT,
+		check("productos").isArray(),
+		body().custom(existeCantidadTraspaso),
+        validarCampos
+	],
 	crearTraspaso
 );
-
-// Actualizar - privado - cualquiera con token válidoa
-/*router.put('/:id',[
-    validarJWT,
-    // check('categoria','No es un id de Mongo').isMongoId(),
-    check('id').custom( existeProductoPorId ),
-    validarCampos
-], actualizarProducto );
-
-// Borrar una categoria - Admin
-router.delete('/:id',[
-    validarJWT,
-    esAdminRole,
-    check('id', 'No es un id de Mongo válido').isMongoId(),
-    check('id').custom( existeProductoPorId ),
-    validarCampos,
-], borrarProducto);*/
-
 module.exports = router;

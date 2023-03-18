@@ -18,38 +18,37 @@ const {
 const router = Router();
 
 /**
- * {{url}}/api/categorias
+ * Rutas de salidas de productos
  */
 
-//  Obtener todas las categorias - publico
+// Obtener todas las salidas de productos - público
 router.get("/", obtenerSalidas);
 
-// Crear categoria - privado - cualquier persona con un token válido
+// Crear una nueva salida de producto - privado - cualquier persona con un token válido
 router.post(
 	"/",
 	[
 		validarJWT,
-		check("producto", "No es un id de Mongo").isMongoId(),
+		check("producto", "No es un id de Mongo válido").isMongoId(),
 		check("producto").custom(existeProductoPorId),
-		body().custom(existeStock),
+		body().custom(existeStock), // Verificar si hay suficiente stock
 		validarCampos,
 	],
 	crearSalida
 );
 
-// Actualizar - privado - cualquiera con token válido
+// Actualizar una salida de producto - privado - cualquier persona con un token válido
 router.put(
 	"/:id",
 	[
 		validarJWT,
-		check("id").custom(existeStockPorId),
-		// check('categoria','No es un id de Mongo').isMongoId(),
+		check("id").custom(existeStockPorId), // Verificar si la salida de producto existe
 		validarCampos,
 	],
 	actualizarSalida
 );
 
-// Borrar una categoria - Admin
+// Borrar una salida de producto - Admin
 /*router.delete(
 	"/:id",
 	[

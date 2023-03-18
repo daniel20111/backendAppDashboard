@@ -1,7 +1,6 @@
 const { Router } = require("express");
-const { check, body } = require("express-validator");
 
-const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
+const { validarJWT } = require("../middlewares");
 
 const {
 	crearCotizacion,
@@ -12,19 +11,19 @@ const {
 const router = Router();
 
 /**
- * {{url}}/api/categorias
+ * Rutas para obtener y crear cotizaciones
  */
 
-//  Obtener todas las categorias - publico
+//  Obtener todas las cotizaciones - público
 router.get("/", obtenerCotizaciones);
 
-// Obtener cotizacion por ID
+// Obtener cotización por ID - público
 router.get("/:id", obtenerCotizacionPorId);
 
-// Crear categoria - privado - cualquier persona con un token válido
+// Crear cotización - privado - cualquier persona con un token válido
 router.post("/", validarJWT, crearCotizacion);
 
-// Actualizar - privado - cualquiera con token válidoa
+// Actualizar cotización - privado - solo admin
 /*router.put('/:id',[
     validarJWT,
     // check('categoria','No es un id de Mongo').isMongoId(),
@@ -32,7 +31,7 @@ router.post("/", validarJWT, crearCotizacion);
     validarCampos
 ], actualizarProducto );
 
-// Borrar una categoria - Admin
+// Borrar una cotización - privado - solo admin
 router.delete('/:id',[
     validarJWT,
     esAdminRole,

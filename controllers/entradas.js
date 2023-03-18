@@ -91,7 +91,20 @@ const actualizarEntrada = async (req, res = response) => {
 		cantidad: saldo,
 	};
 
-	await stock.update(data1);
+	// Crear un nuevo objeto con la fecha y cantidad actuales
+	const historialItem = {
+		fecha: stock.fecha,
+		cantidad: stock.cantidad,
+	};
+
+	// Agregar el objeto historialItem al historial
+	stock.historial.push(historialItem);
+
+	// Actualizar la cantidad del stock
+	stock.cantidad = saldo;
+
+	// Guardar el documento de stock actualizado
+	await stock.save();
 
 	await movimiento
 		.populate("usuario", "nombre")
