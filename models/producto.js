@@ -1,5 +1,4 @@
 const { Schema, model } = require("mongoose");
-const Jimp = require("jimp");
 
 const ProductoSchema = Schema({
     nombre: {
@@ -39,21 +38,18 @@ const ProductoSchema = Schema({
     color: {
         type: String,
         enum: [
-            "sin determinar",
-            "rojo",
-            "naranja",
-            "amarillo",
-            "verde",
-            "azul",
-            "morado",
-            "rosa",
-            "beige",
-            "marrón",
-            "gris",
-            "blanco",
-            "negro",
+            "Sin determinar",
+            "Rojo",
+            "Naranja",
+            "Amarillo",
+            "Verde",
+            "Azul",
+            "Marrón",
+            "Gris",
+            "Blanco",
+            "Negro",
         ],
-        default: "sin determinar",
+        default: "Sin determinar",
     },
 });
 

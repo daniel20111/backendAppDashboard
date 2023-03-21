@@ -99,19 +99,19 @@ async function setColorFromImage(imageURL) {
 }
 
 const colorPalette = {
-	rojo: [255, 0, 0],
-	naranja: [255, 165, 0],
-	amarillo: [255, 255, 0],
-	verde: [0, 128, 0],
-	azul: [0, 0, 255],
-	marrón: [139, 69, 19],
-	blanco: [255, 255, 255],
-	negro: [0, 0, 0],
+	Rojo: [255, 0, 0],
+	Naranja: [255, 165, 0],
+	Amarillo: [255, 255, 0],
+	Verde: [0, 128, 0],
+	Azul: [0, 0, 255],
+	Marrón: [139, 69, 19],
+	Blanco: [255, 255, 255],
+	Negro: [0, 0, 0],
 };
 
 const getClosestColor = (rgb) => {
 	let minDistance = Infinity;
-	let closestColor = "sin determinar";
+	let closestColor = "Sin determinar";
 
 	Object.entries(colorPalette).forEach(([colorName, colorRGB]) => {
 		const distance = colorDistance(rgb, colorRGB);
@@ -135,7 +135,7 @@ const getMostFrequentColor = (colors) => {
 		}
 	}
 
-	let mostFrequentColor = "sin determinar";
+	let mostFrequentColor = "Sin determinar";
 	let maxFrequency = 0;
 
 	for (const [color, frequency] of Object.entries(colorFrequency)) {
