@@ -5,6 +5,7 @@ const {
 	Producto,
 	Stock,
 	Movimiento,
+	Sucursal
 } = require("../models");
 const { query } = require("express");
 
@@ -45,43 +46,56 @@ const existeCategoriaPorId = async (id) => {
 /**
  * Productos
  */
+
 const existeProductoPorId = async (id) => {
-	// Verificar si el correo existe
-	const existeProducto = await Producto.findById(id);
-	if (!existeProducto) {
-		throw new Error(`El id no existe ${id}`);
+	try {
+		const producto = await Producto.findById(id);
+		return !!producto;
+	} catch (error) {
+		console.error("Error al buscar el producto por ID:", error);
+		return false;
 	}
 };
 
-const existeStock = async (body, { req }) => {
-	// Verificar si el correo existe
-
-	const request = { sucursal: body.sucursal, producto: body.producto };
-
-	const existeStock = await Stock.findOne(request);
-	if (!existeStock) {
-		throw new Error(`El stock no existe`);
+const existeSucursalPorId = async (id) => {
+	try {
+		const sucursal = await Sucursal.findById(id);
+		return !!sucursal;
+	} catch (error) {
+		console.error("Error al buscar la sucursal por ID:", error);
+		return false;
 	}
-	if (existeStock.cantidad < body.cantidad) {
-		throw new Error(`El stock no tiene suficiente cantidad`);
+};
+
+
+
+const validarIdProductoSucursal = async (value) => {
+	const producto = await existeProductoPorId(value);
+	const sucursal = await existeSucursalPorId(value);
+
+	console.log("Producto:", producto);
+	console.log("Sucursal:", sucursal);
+
+	if (!producto && !sucursal) {
+		throw new Error("El id no existe en la base de datos");
 	}
+
+	return true;
 };
 
 const existeStockPorId = async (id) => {
-	// Verificar si el correo existe
-	const existeMovimiento = await Movimiento.findById(id);
-
-	const request = {
-		sucursal: existeMovimiento.sucursal,
-		producto: existeMovimiento.producto,
-	};
-
-	const existeStock = await Stock.findOne(request);
-
-	if (existeStock.cantidad < existeMovimiento.cantidad) {
-		throw new Error(`El stock no tiene suficiente cantidad`);
+	try {
+		const stock = await Stock.findById(id);
+		if (!stock) {
+			return false;
+		}
+		return true;
+	} catch (error) {
+		console.error("Error al buscar el stock por ID:", error);
+		return false;
 	}
 };
+
 
 const existeCantidadTraspaso = async (body) => {
 	const { productos } = body;
@@ -143,11 +157,11 @@ const coleccionesPermitidas = (coleccion = "", colecciones = []) => {
 module.exports = {
 	esRoleValido,
 	emailExiste,
-	existeStock,
 	existeUsuarioPorId,
 	existeCategoriaPorId,
 	existeProductoPorId,
 	existeCantidadTraspaso,
 	coleccionesPermitidas,
 	existeStockPorId,
+	validarIdProductoSucursal,
 };

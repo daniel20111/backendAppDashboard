@@ -6,9 +6,13 @@ const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 const {
 	obtenerTodosLosStocks,
 	obtenerStocksPorId,
+	obtenerStockPorId,
 } = require("../controllers/stocks");
 
-const { existeProductoPorId } = require("../helpers/db-validators");
+const {
+	validarIdProductoSucursal,
+	existeStockPorId,
+} = require("../helpers/db-validators");
 
 const router = Router();
 
@@ -21,16 +25,24 @@ router.get("/", obtenerTodosLosStocks);
 
 // Obtener stocks por id - publico
 router.get(
-	"/:id",
+	"/buscar/:id",
 	[
 		check("id")
-			.custom(
-				(value) => existeProductoPorId(value) || existeSucursalPorId(value)
-			)
+			.custom(validarIdProductoSucursal)
 			.withMessage("El id no existe en la base de datos"),
 		validarCampos,
 	],
 	obtenerStocksPorId
+);
+router.get(
+	"/:id",
+	[
+		check("id")
+			.custom(existeStockPorId)
+			.withMessage("El id no existe en la base de datos"),
+		validarCampos,
+	],
+	obtenerStockPorId
 );
 
 module.exports = router;
