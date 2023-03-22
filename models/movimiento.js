@@ -1,5 +1,4 @@
 const { Schema, model } = require("mongoose");
-const moment = require("moment");
 
 const MovimientoSchema = Schema({
 	estado: {
@@ -12,9 +11,15 @@ const MovimientoSchema = Schema({
 		ref: "Usuario",
 		required: true,
 	},
-	cantidad: {
+	cantidadCajas: {
 		type: Number,
 		default: 0,
+		required: true,
+	},
+	cantidadPiezas: {
+		type: Number,
+		default: 0,
+		required: true,
 	},
 	movimiento: {
 		type: String,
@@ -25,7 +30,7 @@ const MovimientoSchema = Schema({
 		ref: "Usuario",
 	},
 	fecha_verificacion: {
-		type: Date
+		type: Date,
 	},
 	verificacion: {
 		type: String,

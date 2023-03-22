@@ -124,7 +124,7 @@ const crearTraspaso = async (req, res = response) => {
 		.execPopulate();
 	// Envía la respuesta con el nuevo traspaso creado
 	res.status(201).json(nuevaTraspaso);
-  }
+};
 
 // Exportar las funciones como módulos
 module.exports = {

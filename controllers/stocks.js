@@ -4,16 +4,29 @@ const { Stock, Producto, Sucursal } = require("../models");
 const obtenerTodosLosStocks = async (req, res = response) => {
 	const query = {};
 
-	const [total, listaStocks] = await Promise.all([
+	const [total, stocks] = await Promise.all([
 		Stock.countDocuments(query),
 		Stock.find(query)
-			.populate("producto", "nombre")
-			.populate("sucursal", "nombre"),
+			.populate("producto", "nombre img categoria usuario")
+			.populate({
+				path: "producto",
+				populate: [
+					{
+						path: "categoria",
+						select: "nombre",
+					},
+					{
+						path: "usuario",
+						select: "nombre",
+					},
+				],
+			})
+			.populate("sucursal", "definicion"),
 	]);
 
 	res.json({
 		total,
-		listaStocks,
+		stocks,
 	});
 };
 
@@ -57,7 +70,6 @@ const obtenerStocksPorId = async (req, res = response) => {
 	});
 };
 
-
 const obtenerStockPorId = async (req, res) => {
 	const { id } = req.params;
 
@@ -86,5 +98,5 @@ const obtenerStockPorId = async (req, res) => {
 module.exports = {
 	obtenerTodosLosStocks,
 	obtenerStocksPorId,
-	obtenerStockPorId
+	obtenerStockPorId,
 };
