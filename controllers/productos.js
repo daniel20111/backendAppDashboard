@@ -35,9 +35,8 @@ const obtenerProducto = async (req, res = response) => {
 	res.json(producto);
 };
 
-// Función para crear un nuevo producto
 const crearProducto = async (req, res = response) => {
-	const { estado, usuario, ...body } = req.body;
+	const { estado, usuario, categoria, ...body } = req.body;
 
 	// Verificar si el producto ya existe
 	const productoDB = await Producto.findOne({ nombre: body.nombre });
@@ -48,11 +47,24 @@ const crearProducto = async (req, res = response) => {
 		});
 	}
 
+	// Obtener la información de la categoría seleccionada
+	const categoriaDB = await Categoria.findById(categoria);
+
+	if (!categoriaDB) {
+		return res.status(400).json({
+			msg: `La categoría seleccionada no existe`,
+		});
+	}
+
 	// Generar la data a guardar
 	const data = {
 		...body,
 		nombre: body.nombre,
 		usuario: req.usuario._id,
+		categoria: categoria,
+		precioCaja: body.precioCaja || categoriaDB.precioCaja,
+		unidadesPorCaja: body.unidadesPorCaja || categoriaDB.unidadesPorCaja,
+		precioPorUnidad: body.precioPorUnidad || categoriaDB.precioPorUnidad,
 	};
 
 	// Crear una nueva instancia de Producto
