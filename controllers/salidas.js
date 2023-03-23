@@ -12,7 +12,21 @@ const obtenerSalidas = async (req, res = response) => {
 			Movimiento.find(query)
 				.sort("-fecha")
 				.populate("usuario", "nombre")
-				.populate("producto", "nombre"),
+				.populate({
+					path: "stock",
+					populate: [
+						{
+							path: "producto",
+							model: "Producto",
+							select: "nombre",
+						},
+						{
+							path: "sucursal",
+							model: "Sucursal",
+							select: "definicion",
+						},
+					],
+				}),
 		]);
 
 		// Devolver la lista de salidas y el total
@@ -37,8 +51,21 @@ const obtenerSalida = async (req, res = response) => {
 		// Buscar la salida por ID y poblar los campos relacionados
 		const salida = await Movimiento.findById(id)
 			.populate("usuario", "nombre")
-			.populate("producto", "nombre")
-			.populate("sucursal", "definicion")
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				],
+			})
 			.populate("verificado_por", "nombre");
 
 		// Devolver la salida encontrada
@@ -61,7 +88,6 @@ const crearSalida = async (req, res = response) => {
 		const data = {
 			...body,
 			usuario: req.usuario._id,
-			cantidad: body.cantidad,
 			movimiento: "SALIDA",
 		};
 
@@ -72,7 +98,21 @@ const crearSalida = async (req, res = response) => {
 		const nuevaSalida = await salida.save();
 		await nuevaSalida
 			.populate("usuario", "nombre")
-			.populate("producto", "nombre")
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				],
+			})
 			.execPopulate();
 
 		// Devolver una respuesta exitosa con la salida creada
@@ -101,14 +141,12 @@ const actualizarSalida = async (req, res = response) => {
 			new: true,
 		});
 
-		const query = {
-			sucursal: movimiento.sucursal._id,
-			producto: movimiento.producto._id,
-		};
+		const stock = await Stock.findById(movimiento.stock._id);
 
-		const stock = await Stock.findOne(query);
-
-		const saldo = stock.cantidad - movimiento.cantidad;
+		const saldo =
+			stock.cantidad -
+			movimiento.cantidadCajas * stock.cajas +
+			movimiento.cantidadPiezas;
 
 		// Crear un nuevo objeto con la fecha y cantidad actuales
 		const historialItem = {
@@ -127,8 +165,21 @@ const actualizarSalida = async (req, res = response) => {
 
 		await movimiento
 			.populate("usuario", "nombre")
-			.populate("producto", "nombre")
-			.populate("sucursal", "definicion")
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				],
+			})
 			.execPopulate();
 
 		res.json(movimiento);
@@ -139,6 +190,7 @@ const actualizarSalida = async (req, res = response) => {
 		});
 	}
 };
+
 // Exportar las funciones para ser utilizadas en otros módulos
 module.exports = {
 	obtenerSalidas,

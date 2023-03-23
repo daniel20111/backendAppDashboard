@@ -1,5 +1,5 @@
 const { response } = require("express");
-const { Producto } = require("../models");
+const { Producto, Categoria, Sucursal, Stock } = require("../models");
 
 // Función para obtener todos los productos
 const obtenerProductos = async (req, res = response) => {
@@ -63,7 +63,6 @@ const crearProducto = async (req, res = response) => {
 		usuario: req.usuario._id,
 		categoria: categoria,
 		precioCaja: body.precioCaja || categoriaDB.precioCaja,
-		unidadesPorCaja: body.unidadesPorCaja || categoriaDB.unidadesPorCaja,
 		precioPorUnidad: body.precioPorUnidad || categoriaDB.precioPorUnidad,
 	};
 
@@ -76,6 +75,22 @@ const crearProducto = async (req, res = response) => {
 		.populate("usuario", "nombre") // Obtener información del usuario relacionado
 		.populate("categoria", "nombre") // Obtener información de la categoría relacionada
 		.execPopulate();
+
+	// Obtener todas las sucursales
+	const sucursales = await Sucursal.find({});
+
+	// Crear un stock con el nuevo producto para cada sucursal existente
+	for (const sucursal of sucursales) {
+		const stockData = {
+			cantidadCajas: 0,
+			cantidadPiezas: 0,
+			producto: nuevoProducto._id,
+			sucursal: sucursal._id,
+		};
+
+		const stock = new Stock(stockData);
+		await stock.save();
+	}
 
 	// Devolver el producto creado
 	res.status(201).json(nuevoProducto);

@@ -9,7 +9,21 @@ const obtenerEntradas = async (req, res = response) => {
 		Movimiento.find(query)
 			.sort("-fecha")
 			.populate("usuario", "nombre")
-			.populate("producto", "nombre"),
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				],
+			}),
 	]);
 
 	res.json({
@@ -23,8 +37,21 @@ const obtenerEntrada = async (req, res = response) => {
 
 	const entrada = await Movimiento.findById(id)
 		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.populate("sucursal", "definicion")
+		.populate({
+			path: "stock",
+			populate: [
+				{
+					path: "producto",
+					model: "Producto",
+					select: "nombre",
+				},
+				{
+					path: "sucursal",
+					model: "Sucursal",
+					select: "definicion",
+				},
+			],
+		})
 		.populate("verificado_por", "nombre");
 
 	res.json(entrada);
@@ -32,20 +59,6 @@ const obtenerEntrada = async (req, res = response) => {
 
 const crearEntrada = async (req, res = response) => {
 	const { estado, usuario, ...body } = req.body;
-
-	const query = { sucursal: body.sucursal._id, producto: body.producto._id };
-
-	let stock = await Stock.findOne(query);
-
-	if (!stock) {
-		const data1 = {
-			...body,
-			cantidad: 0,
-		};
-
-		const newStock = new Stock(data1);
-		await newStock.save();
-	}
 
 	const data = {
 		...body,
@@ -59,8 +72,21 @@ const crearEntrada = async (req, res = response) => {
 	const nuevaEntrada = await entrada.save();
 	await nuevaEntrada
 		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.populate("sucursal", "definicion")
+		.populate({
+			path: "stock",
+			populate: [
+				{
+					path: "producto",
+					model: "Producto",
+					select: "nombre",
+				},
+				{
+					path: "sucursal",
+					model: "Sucursal",
+					select: "definicion",
+				},
+			],
+		})
 		.execPopulate();
 
 	res.status(201).json(nuevaEntrada);
@@ -78,38 +104,45 @@ const actualizarEntrada = async (req, res = response) => {
 		new: true,
 	});
 
-	const query = {
-		sucursal: movimiento.sucursal._id,
-		producto: movimiento.producto._id,
-	};
+	const stock = await Stock.findById(movimiento.stock._id);
 
-	const stock = await Stock.findOne(query);
-
-	const saldo = stock.cantidad + movimiento.cantidad;
-
-	const data1 = {
-		cantidad: saldo,
-	};
+	const saldoCajas = stock.cantidadCajas + movimiento.cantidadCajas;
+	const saldoPiezas = stock.cantidadPiezas + movimiento.cantidadPiezas;
 
 	// Crear un nuevo objeto con la fecha y cantidad actuales
 	const historialItem = {
 		fecha: stock.fecha,
-		cantidad: stock.cantidad,
+		cantidadCajas: stock.cantidadCajas,
+		cantidadPiezas: stock.cantidadPiezas,
 	};
 
 	// Agregar el objeto historialItem al historial
 	stock.historial.push(historialItem);
 
 	// Actualizar la cantidad del stock
-	stock.cantidad = saldo;
+	stock.cantidadCajas = saldoCajas;
+	stock.cantidadPiezas = saldoPiezas;
 
 	// Guardar el documento de stock actualizado
 	await stock.save();
 
 	await movimiento
 		.populate("usuario", "nombre")
-		.populate("producto", "nombre")
-		.populate("sucursal", "definicion")
+		.populate({
+			path: "stock",
+			populate: [
+				{
+					path: "producto",
+					model: "Producto",
+					select: "nombre",
+				},
+				{
+					path: "sucursal",
+					model: "Sucursal",
+					select: "definicion",
+				},
+			],
+		})
 		.execPopulate();
 
 	res.json(movimiento);

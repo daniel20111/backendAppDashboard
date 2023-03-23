@@ -13,13 +13,19 @@ const obtenerTraspasos = async (req, res = response) => {
 			.populate("usuario", "nombre")
 			.populate({
 				path: "entradas",
-				select: "producto cantidad",
-				populate: { path: "producto", model: "Producto", select: "nombre" },
+				select: "stock cantidad",
+				populate: [
+					{ path: "stock.producto", model: "Producto", select: "nombre" },
+					{ path: "stock.sucursal", model: "Sucursal", select: "definicion" },
+				],
 			})
 			.populate({
 				path: "salidas",
-				select: "producto cantidad",
-				populate: { path: "producto", model: "Producto", select: "nombre" },
+				select: "stock cantidad",
+				populate: [
+					{ path: "stock.producto", model: "Producto", select: "nombre" },
+					{ path: "stock.sucursal", model: "Sucursal", select: "definicion" },
+				],
 			}),
 	]);
 
@@ -30,7 +36,6 @@ const obtenerTraspasos = async (req, res = response) => {
 	});
 };
 
-// Función para crear un nuevo traspaso
 // Función para crear un nuevo traspaso
 const crearTraspaso = async (req, res = response) => {
 	const { estado, usuario, ...body } = req.body;
@@ -50,25 +55,6 @@ const crearTraspaso = async (req, res = response) => {
 			return res.status(400).json({
 				message: "Faltan datos requeridos en productos",
 			});
-		}
-
-		const query = {
-			sucursal: destino,
-			producto: producto,
-		};
-
-		let stock = await Stock.findOne(query);
-
-		// Crear stock si no existe
-		if (!stock) {
-			const data1 = {
-				sucursal: destino,
-				producto: producto,
-				cantidad: 0,
-			};
-
-			const newStock = new Stock(data1);
-			await newStock.save();
 		}
 
 		// Crear entrada

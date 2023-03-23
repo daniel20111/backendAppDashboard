@@ -37,19 +37,14 @@ const MovimientoSchema = Schema({
 		required: true,
 		default: "EN ESPERA",
 	},
-	producto: {
+	stock: {
 		type: Schema.Types.ObjectId,
-		ref: "Producto",
+		ref: "Stock",
 		required: true,
 	},
 	fecha: {
 		type: Date,
 		default: Date.now,
-		required: true,
-	},
-	sucursal: {
-		type: Schema.Types.ObjectId,
-		ref: "Sucursal",
 		required: true,
 	},
 });
