@@ -27,8 +27,6 @@ router.post(
 	"/",
 	[
 		validarJWT,
-		check("producto", "No es un id de Mongo").isMongoId(),
-		check("producto").custom(existeProductoPorId),
 		validarCampos,
 	],
 	crearEntrada

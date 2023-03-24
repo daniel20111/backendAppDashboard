@@ -2,7 +2,7 @@ const { response } = require("express");
 const { Movimiento, Stock } = require("../models");
 
 const obtenerEntradas = async (req, res = response) => {
-	const query = { estado: true, movimiento: "Entrada" };
+	const query = { estado: true, movimiento: "ENTRADA" };
 
 	const [total, entradas] = await Promise.all([
 		Movimiento.countDocuments(query),
