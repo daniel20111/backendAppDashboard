@@ -2,12 +2,7 @@ const { Router } = require("express");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
-const {
-	crearCotizacion,
-	obtenerCotizaciones,
-	obtenerCotizacionPorId,
-    actualizarCotizacion
-} = require("../controllers/cotizaciones");
+const { crearVenta, obtenerVentas } = require("../controllers/ventas");
 
 const router = Router();
 
@@ -16,29 +11,15 @@ const router = Router();
  */
 
 //  Obtener todas las cotizaciones - público
-router.get("/", obtenerCotizaciones);
+router.get("/", obtenerVentas);
 
 // Obtener cotización por ID - público
-router.get("/:id", obtenerCotizacionPorId);
+//router.get("/:id", obtenerCotizacionPorId);
 
 // Crear cotización - privado - cualquier persona con un token válido
-router.post(
-	"/",
-	[
-		validarJWT,
-		validarCampos,
-	],
-	crearCotizacion
-);
+router.post("/", [validarJWT, validarCampos], crearVenta);
 
-router.put(
-	"/:id",
-	[
-		validarJWT,
-		validarCampos,
-	],
-	actualizarCotizacion
-);
+//router.put("/:id", [validarJWT, validarCampos], actualizarCotizacion);
 
 // Borrar una cotización - privado - solo admin
 /*router.delete(

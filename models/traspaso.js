@@ -23,6 +23,11 @@ const TraspasoSchema = Schema({
 			ref: "Movimiento",
 		},
 	],
+	fecha: {
+		type: Date,
+		default: Date.now,
+		required: true,
+	},
 });
 
 TraspasoSchema.methods.toJSON = function () {

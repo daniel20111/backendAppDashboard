@@ -1,4 +1,3 @@
-const { response } = require("express");
 const { Movimiento } = require("../models");
 
 const obtenerMovimientos = async (req, res = response) => {
@@ -8,7 +7,7 @@ const obtenerMovimientos = async (req, res = response) => {
 	const [total, movimientos] = await Promise.all([
 		Movimiento.countDocuments(query),
 		Movimiento.find(query)
-			.sort("-fecha")
+			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
 			.populate({
 				path: "stock",
@@ -16,7 +15,7 @@ const obtenerMovimientos = async (req, res = response) => {
 					{
 						path: "producto",
 						model: "Producto",
-						select: "nombre",
+						select: "nombre img",
 					},
 					{
 						path: "sucursal",
@@ -24,7 +23,12 @@ const obtenerMovimientos = async (req, res = response) => {
 						select: "definicion",
 					},
 				],
-			}),
+			})
+			.populate({
+				path: "verificado_por",
+				model: "Usuario",
+				select: "nombre",
+			}), // Modificar esta línea para incluir la referencia correcta al modelo
 		//.skip(Number(desde))
 		//.limit(Number(limite)),
 	]);

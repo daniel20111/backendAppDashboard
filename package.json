@@ -26,5 +26,8 @@
     "mongoose": "^5.11.15",
     "node-kmeans": "^1.1.9",
     "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }

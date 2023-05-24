@@ -20,8 +20,8 @@ router.post(
 	"/",
 	[
 		validarJWT,
-		check("productos").isArray(),
-		body().custom(existeCantidadTraspaso),
+		//check("productos").isArray(),
+		//body().custom(existeCantidadTraspaso),
         validarCampos
 	],
 	crearTraspaso

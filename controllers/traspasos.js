@@ -6,30 +6,43 @@ const { Traspaso, Stock, Movimiento, Entrada, Salida } = require("../models");
 const obtenerTraspasos = async (req, res = response) => {
 	const query = { estado: true };
 
-	// Realiza consultas en paralelo para obtener el total y los traspasos
 	const [total, traspasos] = await Promise.all([
 		Traspaso.countDocuments(query),
 		Traspaso.find(query)
+			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
 			.populate({
 				path: "entradas",
-				select: "stock cantidad",
-				populate: [
-					{ path: "stock.producto", model: "Producto", select: "nombre" },
-					{ path: "stock.sucursal", model: "Sucursal", select: "definicion" },
-				],
+				select: "stock cantidadCajas cantidadPiezas verificacion",
+				populate: {
+					path: "stock",
+					model: "Stock",
+					populate: [
+						{ path: "producto", model: "Producto", select: "nombre img" },
+						{ path: "sucursal", model: "Sucursal", select: "definicion" },
+					],
+				},
 			})
 			.populate({
 				path: "salidas",
-				select: "stock cantidad",
-				populate: [
-					{ path: "stock.producto", model: "Producto", select: "nombre" },
-					{ path: "stock.sucursal", model: "Sucursal", select: "definicion" },
-				],
+				select: "stock cantidadCajas cantidadPiezas verificacion",
+				populate: {
+					path: "stock",
+					model: "Stock",
+					populate: [
+						{ path: "producto", model: "Producto", select: "nombre img" },
+						{ path: "sucursal", model: "Sucursal", select: "definicion" },
+					],
+				},
 			}),
 	]);
 
-	// Envía la respuesta con el total y los traspasos
+	if (!total || !traspasos) {
+		return res.status(500).json({
+			message: "Error al obtener traspasos",
+		});
+	}
+
 	res.json({
 		total,
 		traspasos,
@@ -60,10 +73,10 @@ const crearTraspaso = async (req, res = response) => {
 		// Crear entrada
 		const data2 = {
 			usuario: req.usuario._id,
-			cantidad: body.productos[index].cantidad,
-			producto: producto,
-			sucursal: destino,
+			cantidadCajas: body.productos[index].cajas,
+			cantidadPiezas: body.productos[index].piezas,
 			movimiento: "ENTRADA",
+			stock: destino,
 		};
 
 		const entrada = new Movimiento(data2);
@@ -73,10 +86,10 @@ const crearTraspaso = async (req, res = response) => {
 		// Crear salida
 		const data3 = {
 			usuario: req.usuario._id,
-			cantidad: body.productos[index].cantidad,
-			producto: producto,
-			sucursal: origen,
+			cantidadCajas: body.productos[index].cajas,
+			cantidadPiezas: body.productos[index].piezas,
 			movimiento: "SALIDA",
+			stock: origen,
 		};
 
 		const salida = new Movimiento(data3);
@@ -99,15 +112,54 @@ const crearTraspaso = async (req, res = response) => {
 		.populate("usuario", "nombre")
 		.populate({
 			path: "entradas",
-			select: "producto cantidad sucursal",
-			populate: { path: "producto", model: "Producto", select: "nombre" },
+			select: "cantidadCajas cantidadPiezas stock verificacion",
+			populate: [
+				{
+					path: "stock",
+					model: "Stock",
+					populate: {
+						path: "producto",
+						model: "Producto",
+						select: "nombre img",
+					},
+				},
+				{
+					path: "stock",
+					model: "Stock",
+					populate: {
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				},
+			],
 		})
 		.populate({
 			path: "salidas",
-			select: "producto cantidad sucursal",
-			populate: { path: "producto", model: "Producto", select: "nombre" },
+			select: "cantidadCajas cantidadPiezas stock verificacion",
+			populate: [
+				{
+					path: "stock",
+					model: "Stock",
+					populate: {
+						path: "producto",
+						model: "Producto",
+						select: "nombre img",
+					},
+				},
+				{
+					path: "stock",
+					model: "Stock",
+					populate: {
+						path: "sucursal",
+						model: "Sucursal",
+						select: "definicion",
+					},
+				},
+			],
 		})
 		.execPopulate();
+
 	// Envía la respuesta con el nuevo traspaso creado
 	res.status(201).json(nuevaTraspaso);
 };

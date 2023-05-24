@@ -1,44 +1,14 @@
 const { Schema, model } = require("mongoose");
 
-const ProductosVentaSchema = Schema({
-	producto: {
-		type: Schema.Types.ObjectId,
-		ref: "Producto",
-	},
-	cantidad: Number,
-	precio_unitario: Number,
-	total: Number,
-});
-
 const VentaSchema = Schema({
 	usuario: {
 		type: Schema.Types.ObjectId,
 		ref: "Usuario",
 		required: true,
 	},
-	cliente: {
-		type: Schema.Types.ObjectId,
-		ref: "Cliente",
-		required: true,
-	},
-	sucursal: {
-		type: Schema.Types.ObjectId,
-		ref: "Sucursal",
-		required: true,
-	},
-	fecha: {
-		type: Date,
-		default: Date.now,
-		required: true,
-	},
-	productos: [ProductosVentaSchema],
-	total: {
-		type: Number,
-		required: true,
-	},
 	estado: {
 		type: String,
-		enum: ["Pendiente", "Pagado", "Cancelado"],
+		enum: ["Pendiente", "Pagado", "Entregado", "Anulado"],
 		default: "Pendiente",
 		required: true,
 	},
@@ -46,6 +16,17 @@ const VentaSchema = Schema({
 		type: Schema.Types.ObjectId,
 		ref: "Cotizacion",
 	},
+	fecha_venta: {
+		type: Date,
+		default: Date.now,
+		required: true,
+	},
+	movimientos: [
+		{
+			type: Schema.Types.ObjectId,
+			ref: "Movimiento"
+		}
+	]
 });
 
 VentaSchema.methods.toJSON = function () {

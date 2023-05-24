@@ -6,9 +6,13 @@ const ProductosSchema = Schema({
 		type: Schema.Types.ObjectId,
 		ref: "Producto",
 	},
-	cantidad: Number,
-	precio_unitario: Number,
-	total: Number,
+	cantidadCajas: Number,
+	cantidadPiezas: Number,
+	precioUnitarioPiezas: Number,
+	precioUnitarioCajas: Number,
+	precioTotalPiezas: Number,
+	precioTotalCajas: Number,
+	precioTotal: Number,
 });
 
 const CotizacionSchema = Schema({
@@ -17,9 +21,13 @@ const CotizacionSchema = Schema({
 		ref: "Usuario",
 		required: true,
 	},
+
 	cliente: {
 		type: String,
 		required: true,
+	},
+	nit: {
+		type: String,
 	},
 	sucursal: {
 		type: Schema.Types.ObjectId,

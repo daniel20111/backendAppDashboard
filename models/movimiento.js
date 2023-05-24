@@ -28,9 +28,11 @@ const MovimientoSchema = Schema({
 	verificado_por: {
 		type: Schema.Types.ObjectId,
 		ref: "Usuario",
+		default: null,
 	},
 	fecha_verificacion: {
 		type: Date,
+		default: null, // Establecer el valor predeterminado como null
 	},
 	verificacion: {
 		type: String,

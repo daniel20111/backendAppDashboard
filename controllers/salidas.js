@@ -26,7 +26,12 @@ const obtenerSalidas = async (req, res = response) => {
 							select: "definicion",
 						},
 					],
-				}),
+				})
+				.populate({
+					path: "verificado_por",
+					model: "Usuario",
+					select: "nombre",
+				}), // Agregar esta línea para incluir datos de verificado_por
 		]);
 
 		// Devolver la lista de salidas y el total
@@ -143,10 +148,26 @@ const actualizarSalida = async (req, res = response) => {
 
 		const stock = await Stock.findById(movimiento.stock._id);
 
-		const saldo =
-			stock.cantidad -
-			movimiento.cantidadCajas * stock.cajas +
-			movimiento.cantidadPiezas;
+		stock.cantidadCajas -= movimiento.cantidadCajas;
+		stock.cantidadPiezas -= movimiento.cantidadPiezas;
+
+		// Verificar si la cantidad de piezas es menor a 0, y en ese caso, convertir una caja en piezas y sumarlas a la cantidad de piezas
+		if (stock.cantidadPiezas < 0) {
+			stock.cantidadCajas -= 1;
+			stock.cantidadPiezas += stock.producto.categoria.unidadesPorCaja; // Reemplaza /* número de piezas por caja */ con la cantidad de piezas que contiene cada caja
+		}
+
+		// Si se requiere, puedes verificar si las cantidades de cajas y piezas son mayores o iguales a cero antes de guardar el documento de stock actualizado
+		if (stock.cantidadCajas >= 0 && stock.cantidadPiezas >= 0) {
+			// Guardar el documento de stock actualizado
+			await stock.save();
+		} else {
+			// Aquí puedes manejar el caso en que las cantidades de cajas y piezas sean menores a cero, por ejemplo, enviando un mensaje de error
+			return res.status(400).json({
+				message:
+					"La cantidad de cajas o piezas enviada es mayor que la cantidad disponible en el stock",
+			});
+		}
 
 		// Crear un nuevo objeto con la fecha y cantidad actuales
 		const historialItem = {
