@@ -49,10 +49,14 @@ const MovimientoSchema = Schema({
 		default: Date.now,
 		required: true,
 	},
+	venta: {
+		type: Schema.Types.ObjectId,
+		ref: "Venta",
+	},
 });
 
 MovimientoSchema.methods.toJSON = function () {
-	const { __v, estado, ...data } = this.toObject();
+	const { __v, estado, venta, ...data } = this.toObject();
 	return data;
 };
 

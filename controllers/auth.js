@@ -98,11 +98,25 @@ const googleSignin = async (req, res = response) => {
 };
 
 const validarTokenUsuario = async (req, res = response) => {
+	const usuario = await Usuario.findById(req.usuario._id).populate({
+		path: "sucursal",
+		populate: {
+			path: "usuario",
+			select: "_id nombre",
+		},
+	});
+
+	if (!usuario) {
+		return res.status(404).json({
+			msg: "Usuario no encontrado",
+		});
+	}
+
 	// Generar el JWT
 	const token = await generarJWT(req.usuario._id);
 
 	res.json({
-		usuario: req.usuario,
+		usuario,
 		token: token,
 	});
 };

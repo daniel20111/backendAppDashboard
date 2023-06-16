@@ -16,6 +16,8 @@ const StockSchema = Schema({
 		default: 0,
 		required: true,
 	},
+	reservadoCajas: { type: Number, default: 0 },
+	reservadoPiezas: { type: Number, default: 0 },
 	producto: {
 		type: Schema.Types.ObjectId,
 		ref: "Producto",
