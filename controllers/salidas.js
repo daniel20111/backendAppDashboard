@@ -98,6 +98,11 @@ const crearSalida = async (req, res = response) => {
 
 		// Crear una nueva instancia de Movimiento con la información proporcionada
 		const salida = new Movimiento(data);
+		const stock = await Stock.findById(movimiento.stock._id);
+
+		// Actualizar reserva del stock
+		stock.reservadoCajas -= movimiento.cantidadCajas;
+		stock.reservadoPiezas -= movimiento.cantidadPiezas;
 
 		// Guardar la nueva salida en la base de datos
 		const nuevaSalida = await salida.save();
@@ -142,34 +147,34 @@ const actualizarSalida = async (req, res = response) => {
 		data.verificacion = "VERIFICADO";
 		data.fecha_verificacion = Date.now();
 
+		// Actualiza la salida con los nuevos datos
 		const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
 			new: true,
 		});
 
 		const stock = await Stock.findById(movimiento.stock._id);
 
+		stock.reservadoCajas -= movimiento.cantidadCajas;
+		stock.reservadoPiezas -= movimiento.cantidadPiezas;
+
 		stock.cantidadCajas -= movimiento.cantidadCajas;
 		stock.cantidadPiezas -= movimiento.cantidadPiezas;
 
-		// Verificar si la cantidad de piezas es menor a 0, y en ese caso, convertir una caja en piezas y sumarlas a la cantidad de piezas
 		if (stock.cantidadPiezas < 0) {
 			stock.cantidadCajas -= 1;
-			stock.cantidadPiezas += stock.producto.categoria.unidadesPorCaja; // Reemplaza /* número de piezas por caja */ con la cantidad de piezas que contiene cada caja
+			stock.cantidadPiezas += stock.producto.categoria.unidadesPorCaja;
 		}
 
-		// Si se requiere, puedes verificar si las cantidades de cajas y piezas son mayores o iguales a cero antes de guardar el documento de stock actualizado
-		if (stock.cantidadCajas >= 0 && stock.cantidadPiezas >= 0) {
-			// Guardar el documento de stock actualizado
-			await stock.save();
-		} else {
-			// Aquí puedes manejar el caso en que las cantidades de cajas y piezas sean menores a cero, por ejemplo, enviando un mensaje de error
+		if (stock.cantidadCajas < 0 || stock.cantidadPiezas < 0) {
 			return res.status(400).json({
 				message:
 					"La cantidad de cajas o piezas enviada es mayor que la cantidad disponible en el stock",
 			});
 		}
 
-		// Crear un nuevo objeto con la fecha y cantidad actuales
+		// Guardar el documento de stock actualizado
+		await stock.save();
+
 		const historialItem = {
 			fecha: stock.fecha,
 			cantidad: stock.cantidad,
@@ -178,13 +183,11 @@ const actualizarSalida = async (req, res = response) => {
 		// Agregar el objeto historialItem al historial
 		stock.historial.push(historialItem);
 
-		// Actualizar la cantidad del stock
-		stock.cantidad = saldo;
-
 		// Guardar el documento de stock actualizado
 		await stock.save();
 
-		await movimiento
+		// Actualizar el movimiento ya con los datos de las relaciones.
+		const movimientoActualizado = await Movimiento.findById(movimiento._id)
 			.populate("usuario", "nombre")
 			.populate({
 				path: "stock",
@@ -201,9 +204,13 @@ const actualizarSalida = async (req, res = response) => {
 					},
 				],
 			})
-			.execPopulate();
+			.populate({
+				path: "verificado_por",
+				model: "Usuario",
+				select: "nombre",
+			});
 
-		res.json(movimiento);
+		res.json(movimientoActualizado);
 	} catch (error) {
 		res.status(500).json({
 			message: "Error al actualizar salida",

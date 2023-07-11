@@ -8,6 +8,7 @@ const { googleVerify } = require("../helpers/google-verify");
 
 const login = async (req, res = response) => {
 	const { correo, password } = req.body;
+	console.log("login");
 
 	try {
 		// Verificar si el email existe

@@ -1,7 +1,7 @@
 {
   "name": "07-restserver",
   "version": "1.0.0",
-  "description": "",
+  "description": "Recuerden que deben de ejecutar ```npm install``` para reconstruir los módulos de Node.",
   "main": "index.js",
   "scripts": {
     "start": "node app"

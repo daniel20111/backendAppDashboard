@@ -10,7 +10,13 @@ const obtenerVentas = async (req, res) => {
 		// Buscar todas las ventas en la base de datos
 		const ventas = await Venta.find({})
 			.populate("usuario", "nombre")
-			.populate("cotizacion")
+			.populate({
+				path: "cotizacion",
+				populate: {
+					path: "productos.producto",
+					model: "Producto",
+				},
+			})
 			.populate({
 				path: "movimientos",
 				model: "Movimiento",
@@ -23,6 +29,10 @@ const obtenerVentas = async (req, res) => {
 					{
 						path: "stock",
 						model: "Stock",
+						populate: {
+							path: "producto",
+							model: "Producto",
+						},
 					},
 				],
 			});
@@ -142,7 +152,7 @@ async function realizarMovimientos(
 			usuario,
 			cantidadCajas: cantidad,
 			cantidadPiezas: 0,
-			movimiento: "Salida",
+			movimiento: "SALIDA",
 			stock: otherStock._id,
 			venta: venta._id, // Referencia a la venta
 		});
@@ -152,7 +162,7 @@ async function realizarMovimientos(
 			usuario,
 			cantidadCajas: cantidad,
 			cantidadPiezas: 0,
-			movimiento: "Entrada",
+			movimiento: "ENTRADA",
 			stock: stock._id,
 			venta: venta._id, // Referencia a la venta
 		});
@@ -179,7 +189,7 @@ async function realizarMovimientos(
 			usuario,
 			cantidadCajas: 0,
 			cantidadPiezas: cantidad,
-			movimiento: "Salida",
+			movimiento: "SALIDA",
 			stock: otherStock._id,
 			venta: venta._id, // Referencia a la venta
 		});
@@ -189,7 +199,7 @@ async function realizarMovimientos(
 			usuario,
 			cantidadCajas: 0,
 			cantidadPiezas: cantidad,
-			movimiento: "Entrada",
+			movimiento: "ENTRADA",
 			stock: stock._id,
 			venta: venta._id, // Referencia a la venta
 		});
@@ -216,7 +226,7 @@ async function crearMovimiento(
 		usuario,
 		cantidadCajas,
 		cantidadPiezas,
-		movimiento: "Salida",
+		movimiento: "SALIDA",
 		stock: stock._id,
 		venta: venta._id, // Referencia a la venta
 	});
@@ -225,17 +235,46 @@ async function crearMovimiento(
 	return movimiento;
 }
 
-// Función principal que maneja la lógica de la creación de ventas
 const crearVenta = async (req, res) => {
 	const { cotizacion } = req.body;
+	const usuario = req.usuario._id;
+
+	try {
+		// Solo necesitas una cotización y crear una venta
+		// No es necesario iniciar una sesión de transacción aquí
+		const cotizacionData = await buscarCotizacion(cotizacion);
+		const venta = await guardarVenta(cotizacion, usuario);
+
+		res.status(200).json({
+			message: "Venta creada con éxito",
+			venta,
+		});
+	} catch (error) {
+		console.log("Ocurrió un error al crear la venta", error);
+
+		res.status(500).json({
+			message: "Ocurrió un error al crear la venta",
+			error,
+		});
+	}
+};
+
+const pagarVenta = async (req, res) => {
+	const { id } = req.params;
 	const usuario = req.usuario._id;
 
 	const session = await mongoose.startSession();
 	session.startTransaction();
 
 	try {
-		const cotizacionData = await buscarCotizacion(cotizacion, session);
-		const venta = await guardarVenta(cotizacion, usuario, session);
+		const venta = await Venta.findById(id).session(session);
+		if (!venta) {
+			return res.status(404).json({
+				message: "No se encontró la venta",
+			});
+		}
+
+		const cotizacionData = await buscarCotizacion(venta.cotizacion, session);
 
 		for (let producto of cotizacionData.productos) {
 			const cantidadOriginalCajas = producto.cantidadCajas;
@@ -284,27 +323,31 @@ const crearVenta = async (req, res) => {
 			console.log("Stock actualizado:", stock);
 		}
 
+		venta.estado = "Pagado";
 		await venta.save({ session });
-		console.log("Venta actualizada:", venta);
+		console.log("Venta pagada:", venta);
 
 		await session.commitTransaction();
 		session.endSession();
 		console.log("Transacción confirmada");
 
 		res.status(200).json({
-			message: "Venta y movimientos creados con éxito",
+			message: "Venta pagada y movimientos creados con éxito",
 			venta,
 		});
 	} catch (error) {
 		await session.abortTransaction();
 		session.endSession();
-		console.log("Ocurrió un error al crear la venta y los movimientos", error);
+		console.log(
+			"Ocurrió un error al pagar la venta y crear los movimientos",
+			error
+		);
 
 		res.status(500).json({
-			message: "Ocurrió un error al crear la venta y los movimientos",
+			message: "Ocurrió un error al pagar la venta y crear los movimientos",
 			error,
 		});
 	}
 };
 
-module.exports = { crearVenta, obtenerVentas };
+module.exports = { crearVenta, obtenerVentas, pagarVenta };
