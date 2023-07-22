@@ -7,9 +7,21 @@ const { generarJWT } = require("../helpers");
 const getUsuarioPorId = async (req = request, res = response) => {
 	const { id } = req.params;
 
-	const usuario = await Usuario.findById(id);
+	const usuario = await Usuario.findById(id).populate({
+		path: "sucursal",
+		populate: {
+			path: "usuario",
+			select: "_id nombre", // Asegúrate de seleccionar solo los campos que necesitas en la respuesta
+		},
+	});
 
-	res.json(usuario);
+	if (!usuario) {
+		res.status(404).json({
+			msg: `No existe un usuario con el id ${id}`,
+		});
+	} else {
+		res.json(usuario);
+	}
 };
 
 const usuariosGet = async (req = request, res = response) => {
@@ -64,7 +76,17 @@ const usuariosPut = async (req, res = response) => {
 		resto.password = bcryptjs.hashSync(password, salt);
 	}
 
-	const usuario = await Usuario.findByIdAndUpdate(id, resto, { new: true });
+	// Actualizar el usuario
+	await Usuario.findByIdAndUpdate(id, resto);
+
+	// Buscar el usuario actualizado y aplicar el populate
+	const usuario = await Usuario.findById(id).populate({
+		path: "sucursal",
+		populate: {
+			path: "usuario",
+			select: "_id nombre", // Asegúrate de seleccionar solo los campos que necesitas en la respuesta
+		},
+	});
 
 	res.json(usuario);
 };

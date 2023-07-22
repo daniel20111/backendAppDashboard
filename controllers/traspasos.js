@@ -92,6 +92,12 @@ const crearTraspaso = async (req, res = response) => {
 			stock: origen,
 		};
 
+		//actualizar datos de reserva de stock en origen
+		const stockOrigen = await Stock.findById(origen);
+		stockOrigen.reservadoCajas += body.productos[index].cajas;
+		stockOrigen.reservadoPiezas += body.productos[index].piezas;
+		await stockOrigen.save();
+
 		const salida = new Movimiento(data3);
 		await salida.save();
 		arrSalidas.push(salida._id);

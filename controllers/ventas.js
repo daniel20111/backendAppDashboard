@@ -92,7 +92,6 @@ async function buscarOtrosStocks(producto, sucursal, session) {
 	return otherStocks;
 }
 
-// Realiza traspasos entre sucursales hasta cubrir la cantidad necesaria
 async function realizarTraspasos(
 	producto,
 	usuario,
@@ -101,8 +100,13 @@ async function realizarTraspasos(
 	otherStocks,
 	session
 ) {
+	let faltanteCajas =
+		producto.cantidadCajas - (stock.cantidadCajas - stock.reservadoCajas);
+	let faltantePiezas =
+		producto.cantidadPiezas - (stock.cantidadPiezas - stock.reservadoPiezas);
+
 	for (let otherStock of otherStocks) {
-		if (producto.cantidadCajas <= 0 && producto.cantidadPiezas <= 0) {
+		if (faltanteCajas <= 0 && faltantePiezas <= 0) {
 			break;
 		}
 
@@ -111,20 +115,95 @@ async function realizarTraspasos(
 			estado: true,
 		});
 
-		await realizarMovimientos(
-			producto,
-			usuario,
-			stock,
-			venta,
-			otherStock,
-			traspaso,
-			session
-		);
+		// Manejo de cajas
+		if (
+			faltanteCajas > 0 &&
+			otherStock.cantidadCajas - otherStock.reservadoCajas > 0
+		) {
+			let cantidad = Math.min(
+				faltanteCajas,
+				otherStock.cantidadCajas - otherStock.reservadoCajas
+			);
+
+			let movimientoSalida = new Movimiento({
+				usuario,
+				cantidadCajas: cantidad,
+				cantidadPiezas: 0,
+				movimiento: "SALIDA",
+				stock: otherStock._id,
+				venta: venta._id,
+			});
+			await movimientoSalida.save({ session });
+
+			let movimientoEntrada = new Movimiento({
+				usuario,
+				cantidadCajas: cantidad,
+				cantidadPiezas: 0,
+				movimiento: "ENTRADA",
+				stock: stock._id,
+				venta: venta._id,
+			});
+			await movimientoEntrada.save({ session });
+
+			traspaso.salidas.push(movimientoSalida._id);
+			traspaso.entradas.push(movimientoEntrada._id);
+
+			faltanteCajas -= cantidad;
+			otherStock.reservadoCajas += cantidad;
+		}
+
+		// Manejo de piezas
+		if (
+			faltantePiezas > 0 &&
+			otherStock.cantidadPiezas - otherStock.reservadoPiezas > 0
+		) {
+			let cantidad = Math.min(
+				faltantePiezas,
+				otherStock.cantidadPiezas - otherStock.reservadoPiezas
+			);
+
+			let movimientoSalida = new Movimiento({
+				usuario,
+				cantidadCajas: 0,
+				cantidadPiezas: cantidad,
+				movimiento: "SALIDA",
+				stock: otherStock._id,
+				venta: venta._id,
+			});
+			await movimientoSalida.save({ session });
+
+			let movimientoEntrada = new Movimiento({
+				usuario,
+				cantidadCajas: 0,
+				cantidadPiezas: cantidad,
+				movimiento: "ENTRADA",
+				stock: stock._id,
+				venta: venta._id,
+			});
+			await movimientoEntrada.save({ session });
+
+			traspaso.salidas.push(movimientoSalida._id);
+			traspaso.entradas.push(movimientoEntrada._id);
+
+			faltantePiezas -= cantidad;
+			otherStock.reservadoPiezas += cantidad;
+		}
 
 		await traspaso.save({ session });
 		console.log("Traspaso guardado:", traspaso);
 		await otherStock.save({ session });
 		console.log("Stock actualizado:", otherStock);
+	}
+
+	// Actualiza las reservas en el stock original si hubo traspasos
+	if (
+		faltanteCajas < producto.cantidadCajas ||
+		faltantePiezas < producto.cantidadPiezas
+	) {
+		stock.reservadoCajas += producto.cantidadCajas - faltanteCajas;
+		stock.reservadoPiezas += producto.cantidadPiezas - faltantePiezas;
+		await stock.save({ session });
+		console.log("Stock de origen actualizado con nuevas reservas:", stock);
 	}
 }
 
