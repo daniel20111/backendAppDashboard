@@ -24,6 +24,9 @@ class Server {
 			cotizaciones: "/api/cotizaciones",
 			stocks: "/api/stocks",
 			ventas: "/api/ventas",
+			clientes: "/api/clientes",
+			facturas: "/api/facturas",
+
 		};
 
 		// Conectar a base de datos
@@ -75,6 +78,8 @@ class Server {
 		this.app.use(this.paths.cotizaciones, require("../routes/cotizaciones"));
 		this.app.use(this.paths.stocks, require("../routes/stocks"));
 		this.app.use(this.paths.ventas, require("../routes/ventas"));
+		this.app.use(this.paths.clientes, require("../routes/clientes"));
+		this.app.use(this.paths.facturas, require("../routes/facturas"));
 	}
 
 	listen() {

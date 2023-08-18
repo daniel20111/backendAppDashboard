@@ -10,6 +10,8 @@ const Movimiento = require("./movimiento");
 const Sucursal = require("./sucursal");
 const Stock = require("./stock");
 const Cotizacion = require("./cotizacion");
+const Cliente = require("./cliente");
+const Factura = require("./factura");
 
 module.exports = {
   Categoria,
@@ -23,5 +25,7 @@ module.exports = {
   Movimiento,
   Sucursal,
   Stock,
-  Cotizacion
+  Cotizacion,
+  Cliente,
+  Factura,
 };

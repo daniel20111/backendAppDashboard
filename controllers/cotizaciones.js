@@ -25,6 +25,11 @@ const obtenerCotizaciones = async (req, res) => {
 						model: "Categoria",
 						select: "nombre",
 					},
+					{
+						path: "cliente",
+						model: "Cliente",
+						select: "nombre nit ci",
+					},
 				],
 			});
 
@@ -71,12 +76,29 @@ const obtenerCotizacionPorId = async (req, res) => {
 
 		// Buscar la cotización con el ID especificado en la base de datos
 		const cotizacion = await Cotizacion.findById(id)
+			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
-			.populate("sucursal", "nombre")
+			.populate("sucursal", "definicion")
 			.populate({
 				path: "productos.producto",
 				model: "Producto",
-				select: "nombre",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
+						path: "categoria",
+						model: "Categoria",
+						select: "nombre",
+					},
+					{
+						path: "cliente",
+						model: "Cliente",
+						select: "nombre nit ci",
+					},
+				],
 			});
 
 		// Verificar si se encontró la cotización
@@ -155,6 +177,11 @@ const crearCotizacion = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
+					},
+					{
+						path: "cliente",
+						model: "Cliente",
+						select: "nombre nit ci",
 					},
 				],
 			})
