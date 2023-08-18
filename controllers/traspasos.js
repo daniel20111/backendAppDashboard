@@ -98,6 +98,11 @@ const crearTraspaso = async (req, res = response) => {
 		stockOrigen.reservadoPiezas += body.productos[index].piezas;
 		await stockOrigen.save();
 
+		const stockDestino = await Stock.findById(destino);
+		stockDestino.entranteCajas += body.productos[index].cajas;
+		stockDestino.entrantePiezas += body.productos[index].piezas;
+		await stockDestino.save();
+
 		const salida = new Movimiento(data3);
 		await salida.save();
 		arrSalidas.push(salida._id);

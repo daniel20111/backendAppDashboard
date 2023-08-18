@@ -2,7 +2,8 @@ const { Schema, model } = require("mongoose");
 
 const HistorialSchema = Schema({
 	fecha: Date,
-	cantidad: Number,
+	cantidadCajas: Number,
+	cantidadPiezas: Number,
 });
 
 const StockSchema = Schema({
@@ -18,6 +19,8 @@ const StockSchema = Schema({
 	},
 	reservadoCajas: { type: Number, default: 0 },
 	reservadoPiezas: { type: Number, default: 0 },
+	entranteCajas: { type: Number, default: 0 },
+	entrantePiezas: { type: Number, default: 0 },
 	producto: {
 		type: Schema.Types.ObjectId,
 		ref: "Producto",

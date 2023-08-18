@@ -37,7 +37,9 @@ const UsuarioSchema = Schema({
 	sucursal: {
 		type: Schema.Types.ObjectId,
 		ref: "Sucursal",
-		required: true,
+	},
+	codigoPuntoVenta: {
+		type: Number, // Código del punto de venta dentro de la sucursal
 	},
 });
 

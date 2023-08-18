@@ -3,16 +3,35 @@ const { Schema, model } = require("mongoose");
 const ClienteSchema = Schema({
 	nombre: {
 		type: String,
-		required: true,
+		required: [true, "El nombre es obligatorio"],
+		trim: true,
 	},
-	apellido: {
+	nit: {
 		type: String,
-		required: true,
-	},
-	NIT: {
-		type: String,
+		trim: true,
 		unique: true,
-		sparse: true, // Permite valores únicos pero también acepta múltiples documentos sin este campo
+	},
+	ci: {
+		type: String,
+		trim: true,
+		unique: true,
+	},
+	direccion: {
+		type: String,
+		trim: true,
+	},
+	telefono: {
+		type: String,
+		trim: true,
+	},
+	correo: {
+		type: String,
+		trim: true,
+		unique: true,
+	},
+	estado: {
+		type: Boolean,
+		default: true,
 	},
 });
 

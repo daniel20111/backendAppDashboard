@@ -9,6 +9,7 @@ const obtenerVentas = async (req, res) => {
 	try {
 		// Buscar todas las ventas en la base de datos
 		const ventas = await Venta.find({})
+			.sort({ fecha_venta: -1 })
 			.populate("usuario", "nombre")
 			.populate({
 				path: "cotizacion",
@@ -92,11 +93,13 @@ async function buscarOtrosStocks(producto, sucursal, session) {
 	return otherStocks;
 }
 
+// Realiza los traspasos necesarios para completar la venta
+
 async function realizarTraspasos(
 	producto,
 	usuario,
 	stock,
-	venta,
+	traspaso,
 	otherStocks,
 	session
 ) {
@@ -105,15 +108,14 @@ async function realizarTraspasos(
 	let faltantePiezas =
 		producto.cantidadPiezas - (stock.cantidadPiezas - stock.reservadoPiezas);
 
+	let saldoCajas = faltanteCajas;
+
+	let saldoPiezas = faltantePiezas;
+
 	for (let otherStock of otherStocks) {
 		if (faltanteCajas <= 0 && faltantePiezas <= 0) {
 			break;
 		}
-
-		let traspaso = new Traspaso({
-			usuario,
-			estado: true,
-		});
 
 		// Manejo de cajas
 		if (
@@ -131,7 +133,7 @@ async function realizarTraspasos(
 				cantidadPiezas: 0,
 				movimiento: "SALIDA",
 				stock: otherStock._id,
-				venta: venta._id,
+				traspaso: traspaso._id,
 			});
 			await movimientoSalida.save({ session });
 
@@ -141,7 +143,7 @@ async function realizarTraspasos(
 				cantidadPiezas: 0,
 				movimiento: "ENTRADA",
 				stock: stock._id,
-				venta: venta._id,
+				traspaso: traspaso._id,
 			});
 			await movimientoEntrada.save({ session });
 
@@ -168,7 +170,7 @@ async function realizarTraspasos(
 				cantidadPiezas: cantidad,
 				movimiento: "SALIDA",
 				stock: otherStock._id,
-				venta: venta._id,
+				traspaso: traspaso._id,
 			});
 			await movimientoSalida.save({ session });
 
@@ -178,7 +180,7 @@ async function realizarTraspasos(
 				cantidadPiezas: cantidad,
 				movimiento: "ENTRADA",
 				stock: stock._id,
-				venta: venta._id,
+				traspaso: traspaso._id,
 			});
 			await movimientoEntrada.save({ session });
 
@@ -189,106 +191,22 @@ async function realizarTraspasos(
 			otherStock.reservadoPiezas += cantidad;
 		}
 
-		await traspaso.save({ session });
-		console.log("Traspaso guardado:", traspaso);
 		await otherStock.save({ session });
-		console.log("Stock actualizado:", otherStock);
 	}
 
 	// Actualiza las reservas en el stock original si hubo traspasos
 	if (
-		faltanteCajas < producto.cantidadCajas ||
-		faltantePiezas < producto.cantidadPiezas
+		stock.cantidadCajas === 0 || 
+		stock.cantidadPiezas === 0
 	) {
-		stock.reservadoCajas += producto.cantidadCajas - faltanteCajas;
-		stock.reservadoPiezas += producto.cantidadPiezas - faltantePiezas;
+		stock.entranteCajas += producto.cantidadCajas;
+		stock.entrantePiezas += producto.cantidadPiezas;
 		await stock.save({ session });
-		console.log("Stock de origen actualizado con nuevas reservas:", stock);
-	}
-}
-
-// Realiza los movimientos de entrada y salida necesarios durante un traspaso
-async function realizarMovimientos(
-	producto,
-	usuario,
-	stock,
-	venta,
-	otherStock,
-	traspaso,
-	session
-) {
-	// Manejo de cajas
-	if (
-		producto.cantidadCajas > 0 &&
-		otherStock.cantidadCajas - otherStock.reservadoCajas > 0
-	) {
-		let cantidad = Math.min(
-			producto.cantidadCajas,
-			otherStock.cantidadCajas - otherStock.reservadoCajas
-		);
-
-		let movimientoSalida = new Movimiento({
-			usuario,
-			cantidadCajas: cantidad,
-			cantidadPiezas: 0,
-			movimiento: "SALIDA",
-			stock: otherStock._id,
-			venta: venta._id, // Referencia a la venta
-		});
-		await movimientoSalida.save({ session });
-
-		let movimientoEntrada = new Movimiento({
-			usuario,
-			cantidadCajas: cantidad,
-			cantidadPiezas: 0,
-			movimiento: "ENTRADA",
-			stock: stock._id,
-			venta: venta._id, // Referencia a la venta
-		});
-		await movimientoEntrada.save({ session });
-
-		traspaso.salidas.push(movimientoSalida._id);
-		traspaso.entradas.push(movimientoEntrada._id);
-
-		producto.cantidadCajas -= cantidad;
-		otherStock.reservadoCajas += cantidad;
-	}
-
-	// Manejo de piezas
-	if (
-		producto.cantidadPiezas > 0 &&
-		otherStock.cantidadPiezas - otherStock.reservadoPiezas > 0
-	) {
-		let cantidad = Math.min(
-			producto.cantidadPiezas,
-			otherStock.cantidadPiezas - otherStock.reservadoPiezas
-		);
-
-		let movimientoSalida = new Movimiento({
-			usuario,
-			cantidadCajas: 0,
-			cantidadPiezas: cantidad,
-			movimiento: "SALIDA",
-			stock: otherStock._id,
-			venta: venta._id, // Referencia a la venta
-		});
-		await movimientoSalida.save({ session });
-
-		let movimientoEntrada = new Movimiento({
-			usuario,
-			cantidadCajas: 0,
-			cantidadPiezas: cantidad,
-			movimiento: "ENTRADA",
-			stock: stock._id,
-			venta: venta._id, // Referencia a la venta
-		});
-		await movimientoEntrada.save({ session });
-
-		traspaso.salidas.push(movimientoSalida._id);
-		traspaso.entradas.push(movimientoEntrada._id);
-
-		producto.cantidadPiezas -= cantidad;
-		otherStock.reservadoPiezas += cantidad;
+	}else
+	{
+		stock.entranteCajas += saldoCajas;
+		stock.entrantePiezas += saldoPiezas;
+		await stock.save({ session });
 	}
 }
 
@@ -319,10 +237,11 @@ const crearVenta = async (req, res) => {
 	const usuario = req.usuario._id;
 
 	try {
-		// Solo necesitas una cotización y crear una venta
-		// No es necesario iniciar una sesión de transacción aquí
-		const cotizacionData = await buscarCotizacion(cotizacion);
+		// Guardar la venta
 		const venta = await guardarVenta(cotizacion, usuario);
+
+		// Actualizar el campo vendido de la cotización a true
+		await Cotizacion.findByIdAndUpdate(cotizacion, { vendido: true });
 
 		res.status(200).json({
 			message: "Venta creada con éxito",
@@ -355,10 +274,12 @@ const pagarVenta = async (req, res) => {
 
 		const cotizacionData = await buscarCotizacion(venta.cotizacion, session);
 
-		for (let producto of cotizacionData.productos) {
-			const cantidadOriginalCajas = producto.cantidadCajas;
-			const cantidadOriginalPiezas = producto.cantidadPiezas;
+		let traspaso = new Traspaso({
+			usuario,
+			estado: true,
+		});
 
+		for (let producto of cotizacionData.productos) {
 			let stock = await buscarStock(
 				producto.producto,
 				cotizacionData.sucursal,
@@ -379,15 +300,15 @@ const pagarVenta = async (req, res) => {
 					producto,
 					usuario,
 					stock,
-					venta,
+					traspaso,
 					otherStocks,
 					session
 				);
 			}
 
 			const movimiento = await crearMovimiento(
-				cantidadOriginalCajas,
-				cantidadOriginalPiezas,
+				producto.cantidadCajas,
+				producto.cantidadPiezas,
 				usuario,
 				stock,
 				venta,
@@ -396,19 +317,20 @@ const pagarVenta = async (req, res) => {
 
 			venta.movimientos.push(movimiento._id);
 
-			stock.reservadoCajas += cantidadOriginalCajas - producto.cantidadCajas;
-			stock.reservadoPiezas += cantidadOriginalPiezas - producto.cantidadPiezas;
+			stock.reservadoCajas += producto.cantidadCajas;
+			stock.reservadoPiezas += producto.cantidadPiezas;
 			await stock.save({ session });
-			console.log("Stock actualizado:", stock);
 		}
 
 		venta.estado = "Pagado";
 		await venta.save({ session });
-		console.log("Venta pagada:", venta);
+
+		if (traspaso.entradas.length > 0 || traspaso.salidas.length > 0) {
+			await traspaso.save({ session });
+		}
 
 		await session.commitTransaction();
 		session.endSession();
-		console.log("Transacción confirmada");
 
 		res.status(200).json({
 			message: "Venta pagada y movimientos creados con éxito",
@@ -417,10 +339,6 @@ const pagarVenta = async (req, res) => {
 	} catch (error) {
 		await session.abortTransaction();
 		session.endSession();
-		console.log(
-			"Ocurrió un error al pagar la venta y crear los movimientos",
-			error
-		);
 
 		res.status(500).json({
 			message: "Ocurrió un error al pagar la venta y crear los movimientos",

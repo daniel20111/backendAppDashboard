@@ -21,13 +21,10 @@ const CotizacionSchema = Schema({
 		ref: "Usuario",
 		required: true,
 	},
-
 	cliente: {
-		type: String,
+		type: Schema.Types.ObjectId,
+		ref: "Cliente",
 		required: true,
-	},
-	nit: {
-		type: String,
 	},
 	sucursal: {
 		type: Schema.Types.ObjectId,
@@ -47,6 +44,11 @@ const CotizacionSchema = Schema({
 	estado: {
 		type: Boolean,
 		default: true,
+		required: true,
+	},
+	vendido: {
+		type: Boolean,
+		default: false,
 		required: true,
 	},
 });

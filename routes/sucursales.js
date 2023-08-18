@@ -9,6 +9,7 @@ const {
 	obtenerSucursales,
 	actualizarSucursal,
 	borrarSucursal,
+	crearPuntoVenta,
 } = require("../controllers/sucursales");
 
 const router = Router();
@@ -35,5 +36,15 @@ router.put("/:id", [validarJWT], actualizarSucursal);
 
 // Borrar una sucursal - Admin
 router.delete("/:id", [validarJWT], borrarSucursal);
+router.post(
+	"/puntoVenta/:id",
+	[
+		validarJWT,
+		check("id", "No es un id de Mongo válido").isMongoId(),
+		// Aquí puedes agregar más validaciones si es necesario
+		validarCampos,
+	],
+	crearPuntoVenta
+);
 
 module.exports = router;

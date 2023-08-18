@@ -27,7 +27,13 @@ const actualizarImagen = async (req, res = response) => {
 
 	switch (coleccion) {
 		case "usuarios":
-			modelo = await Usuario.findById(id);
+			modelo = await Usuario.findById(id).populate({
+				path: "sucursal",
+				populate: {
+					path: "usuario",
+					select: "_id nombre", // Asegúrate de seleccionar solo los campos que necesitas en la respuesta
+				},
+			});
 			if (!modelo) {
 				return res.status(400).json({
 					msg: `No existe un usuario con el id ${id}`,
@@ -73,29 +79,29 @@ const actualizarImagen = async (req, res = response) => {
 };
 
 async function getDominantColors(pixels, colorCount = 12) {
-  return new Promise((resolve, reject) => {
-    KMeans.clusterize(pixels, { k: colorCount }, (err, clusters) => {
-      if (err) {
-        reject(err);
-      } else {
-        const dominantColors = clusters.map(cluster => cluster.centroid);
-        resolve(dominantColors);
-      }
-    });
-  });
+	return new Promise((resolve, reject) => {
+		KMeans.clusterize(pixels, { k: colorCount }, (err, clusters) => {
+			if (err) {
+				reject(err);
+			} else {
+				const dominantColors = clusters.map((cluster) => cluster.centroid);
+				resolve(dominantColors);
+			}
+		});
+	});
 }
 
 async function setColorFromImage(imageURL) {
-  try {
-    const pixels = await getPixelsFromImage(imageURL);
-    const dominantColors = await getDominantColors(pixels);
-    const closestColors = dominantColors.map((color) => getClosestColor(color));
-    const mostFrequentColor = getMostFrequentColor(closestColors);
-    return mostFrequentColor;
-  } catch (error) {
-    console.error("Error al obtener el color predominante:", error);
-    return "sin determinar";
-  }
+	try {
+		const pixels = await getPixelsFromImage(imageURL);
+		const dominantColors = await getDominantColors(pixels);
+		const closestColors = dominantColors.map((color) => getClosestColor(color));
+		const mostFrequentColor = getMostFrequentColor(closestColors);
+		return mostFrequentColor;
+	} catch (error) {
+		console.error("Error al obtener el color predominante:", error);
+		return "sin determinar";
+	}
 }
 
 const colorPalette = {
@@ -160,36 +166,36 @@ const colorDistance = (rgb1, rgb2) => {
 };
 
 async function getPixelsFromImage(imagePath, targetPixels = 100) {
-  return new Promise((resolve, reject) => {
-    Jimp.read(imagePath)
-      .then(image => {
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+	return new Promise((resolve, reject) => {
+		Jimp.read(imagePath)
+			.then((image) => {
+				const width = image.bitmap.width;
+				const height = image.bitmap.height;
 
-        // Calcular el factor de escala para obtener aproximadamente 100 píxeles
-        const currentPixels = width * height;
-        const scaleFactor = Math.sqrt(targetPixels / currentPixels);
+				// Calcular el factor de escala para obtener aproximadamente 100 píxeles
+				const currentPixels = width * height;
+				const scaleFactor = Math.sqrt(targetPixels / currentPixels);
 
-        // Cambiar el tamaño de la imagen
-        const newWidth = Math.floor(width * scaleFactor);
-        const newHeight = Math.floor(height * scaleFactor);
-        image.resize(newWidth, newHeight);
+				// Cambiar el tamaño de la imagen
+				const newWidth = Math.floor(width * scaleFactor);
+				const newHeight = Math.floor(height * scaleFactor);
+				image.resize(newWidth, newHeight);
 
-        const pixels = [];
+				const pixels = [];
 
-        for (let y = 0; y < newHeight; y++) {
-          for (let x = 0; x < newWidth; x++) {
-            const color = Jimp.intToRGBA(image.getPixelColor(x, y));
-            pixels.push([color.r, color.g, color.b]);
-          }
-        }
+				for (let y = 0; y < newHeight; y++) {
+					for (let x = 0; x < newWidth; x++) {
+						const color = Jimp.intToRGBA(image.getPixelColor(x, y));
+						pixels.push([color.r, color.g, color.b]);
+					}
+				}
 
-        resolve(pixels);
-      })
-      .catch(err => {
-        reject(err);
-      });
-  });
+				resolve(pixels);
+			})
+			.catch((err) => {
+				reject(err);
+			});
+	});
 }
 
 const actualizarImagenCloudinary = async (req, res = response) => {
@@ -199,7 +205,13 @@ const actualizarImagenCloudinary = async (req, res = response) => {
 
 	switch (coleccion) {
 		case "usuarios":
-			modelo = await Usuario.findById(id);
+			modelo = await Usuario.findById(id).populate({
+				path: "sucursal",
+				populate: {
+					path: "usuario",
+					select: "_id nombre", // Asegúrate de seleccionar solo los campos que necesitas en la respuesta
+				},
+			});
 			if (!modelo) {
 				return res.status(400).json({
 					msg: `No existe un usuario con el id ${id}`,

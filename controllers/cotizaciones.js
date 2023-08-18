@@ -3,10 +3,11 @@ const { Cotizacion } = require("../models"); // Asegúrate de importar el modelo
 // Función para obtener todas las cotizaciones de la base de datos
 const obtenerCotizaciones = async (req, res) => {
 	const query = { estado: true };
+	const fechaActual = new Date();
 
 	try {
 		// Buscar todas las cotizaciones en la base de datos
-		const cotizaciones = await Cotizacion.find(query)
+		let cotizaciones = await Cotizacion.find(query)
 			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
 			.populate("sucursal", "definicion")
@@ -26,6 +27,23 @@ const obtenerCotizaciones = async (req, res) => {
 					},
 				],
 			});
+
+		// Iterar sobre las cotizaciones y verificar la fecha
+		for (let i = 0; i < cotizaciones.length; i++) {
+			let fechaCotizacion = new Date(cotizaciones[i].fecha);
+			let diferenciaDias = Math.floor(
+				(fechaActual - fechaCotizacion) / (1000 * 60 * 60 * 24)
+			);
+
+			if (diferenciaDias > 7) {
+				// Actualizar el estado de la cotización a false
+				cotizaciones[i].estado = false;
+				await cotizaciones[i].save();
+			}
+		}
+
+		// Filtrar las cotizaciones con estado true para la respuesta
+		cotizaciones = cotizaciones.filter((cotizacion) => cotizacion.estado);
 
 		// Calcular el total de cotizaciones
 		const total = cotizaciones.length;

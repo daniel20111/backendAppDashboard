@@ -1,26 +1,36 @@
 const { Schema, model } = require("mongoose");
 
-const SucursalSchema = Schema({
-	definicion: {
-		type: String,
-		required: [true, "La definicion es obligatoria"],
-		unique: true,
-	},
+const PuntoVentaSchema = Schema({
+	codigo: { type: Number, required: true },
+	direccion: { type: String, required: true },
+	// Puedes añadir más campos aquí si es necesario
+});
+
+const SucursalSchema = new Schema({
 	categoria: {
 		type: String,
 		required: true,
 		default: "SUCURSAL",
 		enum: ["CASA MATRIZ", "SUCURSAL"],
 	},
+	municipio: {
+		type: String,
+		required: [true, "El municipio es obligatorio"],
+	},
 	direccion: {
 		type: String,
 		required: [true, "La direccion es obligatoria"],
 		unique: true,
 	},
+	codigoSucursal: { type: Number, required: true },
+	puntosDeVenta: [PuntoVentaSchema],
 	estado: {
 		type: Boolean,
 		default: true,
 		required: true,
+	},
+	telefono: {
+		type: String,
 	},
 	usuario: {
 		type: Schema.Types.ObjectId,

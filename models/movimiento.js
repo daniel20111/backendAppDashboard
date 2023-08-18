@@ -53,6 +53,10 @@ const MovimientoSchema = Schema({
 		type: Schema.Types.ObjectId,
 		ref: "Venta",
 	},
+	traspaso: {
+		type: Schema.Types.ObjectId,
+		ref: "Traspaso",
+	},
 });
 
 MovimientoSchema.methods.toJSON = function () {

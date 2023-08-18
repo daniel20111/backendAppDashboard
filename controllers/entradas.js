@@ -70,6 +70,15 @@ const crearEntrada = async (req, res = response) => {
 	const entrada = new Movimiento(data);
 
 	const nuevaEntrada = await entrada.save();
+
+	const stock = await Stock.findById(nuevaEntrada.stock._id);
+
+	stock.entranteCajas += nuevaEntrada.cantidadCajas;
+	stock.entrantePiezas += nuevaEntrada.cantidadPiezas;
+
+	await stock.save();
+
+
 	await nuevaEntrada
 		.populate("usuario", "nombre")
 		.populate({
@@ -122,6 +131,9 @@ const actualizarEntrada = async (req, res = response) => {
 	// Actualizar la cantidad del stock
 	stock.cantidadCajas = saldoCajas;
 	stock.cantidadPiezas = saldoPiezas;
+
+	stock.entranteCajas -= movimiento.cantidadCajas;
+	stock.entrantePiezas -= movimiento.cantidadPiezas;
 
 	// Guardar el documento de stock actualizado
 	await stock.save();
