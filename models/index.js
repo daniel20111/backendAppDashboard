@@ -10,6 +10,7 @@ const Movimiento = require("./movimiento");
 const Sucursal = require("./sucursal");
 const Stock = require("./stock");
 const Cotizacion = require("./cotizacion");
+const Venta = require("./venta");
 const Cliente = require("./cliente");
 const Factura = require("./factura");
 
@@ -26,6 +27,7 @@ module.exports = {
   Sucursal,
   Stock,
   Cotizacion,
+  Venta,
   Cliente,
   Factura,
 };

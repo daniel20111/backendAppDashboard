@@ -20,7 +20,7 @@ const obtenerEntradas = async (req, res = response) => {
 					{
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				],
 			}),
@@ -48,7 +48,7 @@ const obtenerEntrada = async (req, res = response) => {
 				{
 					path: "sucursal",
 					model: "Sucursal",
-					select: "definicion",
+					select: "municipio",
 				},
 			],
 		})
@@ -78,7 +78,6 @@ const crearEntrada = async (req, res = response) => {
 
 	await stock.save();
 
-
 	await nuevaEntrada
 		.populate("usuario", "nombre")
 		.populate({
@@ -92,7 +91,7 @@ const crearEntrada = async (req, res = response) => {
 				{
 					path: "sucursal",
 					model: "Sucursal",
-					select: "definicion",
+					select: "municipio",
 				},
 			],
 		})
@@ -102,63 +101,75 @@ const crearEntrada = async (req, res = response) => {
 };
 
 const actualizarEntrada = async (req, res = response) => {
-	const { id } = req.params;
-	const { estado, usuario, ...data } = req.body;
+	const session = await Stock.startSession();
+	session.startTransaction();
 
-	data.verificado_por = req.usuario._id;
-	data.verificacion = "VERIFICADO";
-	data.fecha_verificacion = Date.now();
+	try {
+		const { id } = req.params;
+		const { estado, usuario, ...data } = req.body;
 
-	const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
-		new: true,
-	});
+		data.verificado_por = req.usuario._id;
+		data.verificacion = "VERIFICADO";
+		data.fecha_verificacion = Date.now();
 
-	const stock = await Stock.findById(movimiento.stock._id);
+		const movimiento = await Movimiento.findByIdAndUpdate(id, data, {
+			new: true,
+			session,
+		});
 
-	const saldoCajas = stock.cantidadCajas + movimiento.cantidadCajas;
-	const saldoPiezas = stock.cantidadPiezas + movimiento.cantidadPiezas;
+		const stock = await Stock.findById(movimiento.stock._id).session(session);
 
-	// Crear un nuevo objeto con la fecha y cantidad actuales
-	const historialItem = {
-		fecha: stock.fecha,
-		cantidadCajas: stock.cantidadCajas,
-		cantidadPiezas: stock.cantidadPiezas,
-	};
+		const saldoCajas = stock.cantidadCajas + movimiento.cantidadCajas;
+		const saldoPiezas = stock.cantidadPiezas + movimiento.cantidadPiezas;
 
-	// Agregar el objeto historialItem al historial
-	stock.historial.push(historialItem);
+		const historialItem = {
+			fecha: new Date(),
+			cantidadCajas: saldoCajas,
+			cantidadPiezas: saldoPiezas,
+		};
 
-	// Actualizar la cantidad del stock
-	stock.cantidadCajas = saldoCajas;
-	stock.cantidadPiezas = saldoPiezas;
+		stock.historial.push(historialItem);
+		stock.cantidadCajas = saldoCajas;
+		stock.cantidadPiezas = saldoPiezas;
+		stock.entranteCajas -= movimiento.cantidadCajas;
+		stock.entrantePiezas -= movimiento.cantidadPiezas;
 
-	stock.entranteCajas -= movimiento.cantidadCajas;
-	stock.entrantePiezas -= movimiento.cantidadPiezas;
+		await stock.save({ session });
 
-	// Guardar el documento de stock actualizado
-	await stock.save();
+		await movimiento
+			.populate("usuario", "nombre")
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "municipio",
+					},
+				],
+			})
+			.execPopulate();
 
-	await movimiento
-		.populate("usuario", "nombre")
-		.populate({
-			path: "stock",
-			populate: [
-				{
-					path: "producto",
-					model: "Producto",
-					select: "nombre",
-				},
-				{
-					path: "sucursal",
-					model: "Sucursal",
-					select: "definicion",
-				},
-			],
-		})
-		.execPopulate();
+		await session.commitTransaction();
+		session.endSession();
 
-	res.json(movimiento);
+		res.json(movimiento);
+	} catch (error) {
+		await session.abortTransaction();
+		session.endSession();
+		console.error("Error al actualizar la entrada:", error);
+		res.status(500).json({
+			msg: "Ocurrió un error al actualizar la entrada. Por favor, inténtalo de nuevo.",
+		});
+	}
 };
+
+
 
 module.exports = {
 	obtenerEntradas,

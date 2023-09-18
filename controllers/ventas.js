@@ -3,6 +3,7 @@ const Movimiento = require("../models/movimiento");
 const Cotizacion = require("../models/cotizacion");
 const Stock = require("../models/stock");
 const Traspaso = require("../models/traspaso");
+const Producto = require("../models/producto");
 const mongoose = require("mongoose");
 
 const obtenerVentas = async (req, res) => {
@@ -13,10 +14,19 @@ const obtenerVentas = async (req, res) => {
 			.populate("usuario", "nombre")
 			.populate({
 				path: "cotizacion",
-				populate: {
-					path: "productos.producto",
-					model: "Producto",
-				},
+				populate: [
+					{
+						path: "productos.producto",
+						model: "Producto",
+						populate: [
+							{ path: "usuario", model: "Usuario", select: "nombre" },
+							{ path: "categoria", model: "Categoria", select: "nombre" },
+						],
+					},
+					{ path: "cliente", model: "Cliente" },
+					{ path: "sucursal", model: "Sucursal", select: "municipio" },
+					{ path: "usuario", model: "Usuario", select: "nombre" },
+				],
 			})
 			.populate({
 				path: "movimientos",
@@ -28,12 +38,24 @@ const obtenerVentas = async (req, res) => {
 						select: "nombre",
 					},
 					{
+						path: "verificado_por",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
 						path: "stock",
 						model: "Stock",
-						populate: {
-							path: "producto",
-							model: "Producto",
-						},
+						populate: [
+							{
+								path: "producto",
+								model: "Producto",
+							},
+							{
+								path: "sucursal",
+								model: "Sucursal",
+								select: "municipio",
+							},
+						],
 					},
 				],
 			});
@@ -56,13 +78,82 @@ const obtenerVentas = async (req, res) => {
 	}
 };
 
+//pbtener venta por id
+const obtenerVentaPorId = async (req, res) => {
+	const { id } = req.params;
+
+	try {
+		const venta = await Venta.findById(id)
+			.populate("usuario", "nombre")
+			.populate({
+				path: "cotizacion",
+				populate: [
+					{
+						path: "productos.producto",
+						model: "Producto",
+						populate: [
+							{ path: "usuario", model: "Usuario", select: "nombre" },
+							{ path: "categoria", model: "Categoria", select: "nombre" },
+						],
+					},
+					{ path: "cliente", model: "Cliente" },
+					{ path: "sucursal", model: "Sucursal", select: "municipio" },
+					{ path: "usuario", model: "Usuario", select: "nombre" },
+				],
+			})
+			.populate({
+				path: "movimientos",
+				model: "Movimiento",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
+						path: "verificado_por",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
+						path: "stock",
+						model: "Stock",
+						populate: [
+							{
+								path: "producto",
+								model: "Producto",
+							},
+							{
+								path: "sucursal",
+								model: "Sucursal",
+								select: "municipio",
+							},
+						],
+					},
+				],
+			});
+
+		if (!venta) {
+			return res.status(404).json({
+				message: "No se encontró la venta",
+			});
+		}
+
+		res.status(200).json(venta);
+	} catch (error) {
+		res.status(500).json({
+			message: "Ocurrió un error al obtener la venta",
+			error,
+		});
+	}
+};
+
 // Busca una cotización en la base de datos por su ID
 async function buscarCotizacion(id, session) {
 	const cotizacionData = await Cotizacion.findById(id).session(session);
 	if (!cotizacionData) {
 		throw new Error("Cotización no encontrada");
 	}
-	console.log("Cotización encontrada:", cotizacionData);
 	return cotizacionData;
 }
 
@@ -70,14 +161,12 @@ async function buscarCotizacion(id, session) {
 async function guardarVenta(cotizacion, usuario, session) {
 	const venta = new Venta({ usuario, cotizacion });
 	await venta.save({ session });
-	console.log("Venta creada:", venta);
 	return venta;
 }
 
 // Busca el stock de un producto en una sucursal específica
 async function buscarStock(producto, sucursal, session) {
 	const stock = await Stock.findOne({ producto, sucursal }).session(session);
-	console.log("Stock encontrado:", stock);
 	return stock;
 }
 
@@ -89,7 +178,6 @@ async function buscarOtrosStocks(producto, sucursal, session) {
 	})
 		.sort({ cantidadCajas: -1, cantidadPiezas: -1 })
 		.session(session);
-	console.log("Otros stocks encontrados:", otherStocks);
 	return otherStocks;
 }
 
@@ -103,17 +191,44 @@ async function realizarTraspasos(
 	otherStocks,
 	session
 ) {
+	console.log("=== Inicio de la función realizarTraspasos ===");
+
+	console.log(producto.cantidadCajas);
+	console.log(stock.cantidadCajas);
+	console.log(stock.reservadoCajas);
+
+	console.log(producto.cantidadPiezas);
+	console.log(stock.cantidadPiezas);
+	console.log(stock.reservadoPiezas);
+
+	let stockReservadoDisponibleCajas =
+		stock.entranteCajas - stock.reservadoCajas;
+
+	let stockReservadoDisponiblePiezas =
+		stock.entrantePiezas - stock.reservadoPiezas;
+
 	let faltanteCajas =
-		producto.cantidadCajas - (stock.cantidadCajas - stock.reservadoCajas);
+		producto.cantidadCajas -
+		(stock.cantidadCajas - stockReservadoDisponibleCajas);
+
 	let faltantePiezas =
-		producto.cantidadPiezas - (stock.cantidadPiezas - stock.reservadoPiezas);
+		producto.cantidadPiezas -
+		(stock.cantidadPiezas - stockReservadoDisponiblePiezas);
+
+	console.log(
+		`Calculando faltantes: Cajas=${faltanteCajas}, Piezas=${faltantePiezas}`
+	);
 
 	let saldoCajas = faltanteCajas;
-
 	let saldoPiezas = faltantePiezas;
 
+	console.log(`Saldo inicial: Cajas=${saldoCajas}, Piezas=${saldoPiezas}`);
+
 	for (let otherStock of otherStocks) {
+		console.log("=== Inicio del ciclo for para otherStocks ===");
+
 		if (faltanteCajas <= 0 && faltantePiezas <= 0) {
+			console.log("No hay faltantes. Rompiendo el ciclo.");
 			break;
 		}
 
@@ -126,6 +241,7 @@ async function realizarTraspasos(
 				faltanteCajas,
 				otherStock.cantidadCajas - otherStock.reservadoCajas
 			);
+			console.log(`Manejando cajas. Cantidad a mover: ${cantidad}`);
 
 			let movimientoSalida = new Movimiento({
 				usuario,
@@ -152,6 +268,11 @@ async function realizarTraspasos(
 
 			faltanteCajas -= cantidad;
 			otherStock.reservadoCajas += cantidad;
+
+			console.log(`Faltante de cajas después del movimiento: ${faltanteCajas}`);
+			console.log(
+				`Reservado de cajas después del movimiento: ${otherStock.reservadoCajas}`
+			);
 		}
 
 		// Manejo de piezas
@@ -163,6 +284,7 @@ async function realizarTraspasos(
 				faltantePiezas,
 				otherStock.cantidadPiezas - otherStock.reservadoPiezas
 			);
+			console.log(`Manejando piezas. Cantidad a mover: ${cantidad}`);
 
 			let movimientoSalida = new Movimiento({
 				usuario,
@@ -189,25 +311,32 @@ async function realizarTraspasos(
 
 			faltantePiezas -= cantidad;
 			otherStock.reservadoPiezas += cantidad;
+
+			console.log(
+				`Faltante de piezas después del movimiento: ${faltantePiezas}`
+			);
+			console.log(
+				`Reservado de piezas después del movimiento: ${otherStock.reservadoPiezas}`
+			);
 		}
 
 		await otherStock.save({ session });
+
+		console.log("=== Fin del ciclo for para otherStocks ===");
 	}
 
 	// Actualiza las reservas en el stock original si hubo traspasos
-	if (
-		stock.cantidadCajas === 0 || 
-		stock.cantidadPiezas === 0
-	) {
+	if (stock.cantidadCajas === 0 || stock.cantidadPiezas === 0) {
 		stock.entranteCajas += producto.cantidadCajas;
 		stock.entrantePiezas += producto.cantidadPiezas;
-		await stock.save({ session });
-	}else
-	{
+	} else {
 		stock.entranteCajas += saldoCajas;
 		stock.entrantePiezas += saldoPiezas;
-		await stock.save({ session });
 	}
+	await stock.save({ session });
+	console.log("Stock después de guardar:", JSON.stringify(stock));
+
+	console.log("=== Fin de la función realizarTraspasos ===");
 }
 
 // Crea un movimiento de salida de la venta en la sucursal de origen
@@ -225,10 +354,9 @@ async function crearMovimiento(
 		cantidadPiezas,
 		movimiento: "SALIDA",
 		stock: stock._id,
-		venta: venta._id, // Referencia a la venta
+		venta: venta._id,
 	});
 	await movimiento.save({ session });
-	console.log("Movimiento creado:", movimiento);
 	return movimiento;
 }
 
@@ -248,8 +376,6 @@ const crearVenta = async (req, res) => {
 			venta,
 		});
 	} catch (error) {
-		console.log("Ocurrió un error al crear la venta", error);
-
 		res.status(500).json({
 			message: "Ocurrió un error al crear la venta",
 			error,
@@ -332,10 +458,53 @@ const pagarVenta = async (req, res) => {
 		await session.commitTransaction();
 		session.endSession();
 
-		res.status(200).json({
-			message: "Venta pagada y movimientos creados con éxito",
-			venta,
-		});
+		const ventaCreada = await Venta.findById(venta._id)
+			.populate("usuario", "nombre")
+			.populate({
+				path: "cotizacion",
+				populate: [
+					{
+						path: "productos.producto",
+						model: "Producto",
+						populate: [
+							{ path: "usuario", model: "Usuario", select: "nombre" },
+							{ path: "categoria", model: "Categoria", select: "nombre" },
+						],
+					},
+					{ path: "cliente", model: "Cliente" },
+					{ path: "sucursal", model: "Sucursal", select: "municipio" },
+					{ path: "usuario", model: "Usuario", select: "nombre" },
+				],
+			})
+			.populate({
+				path: "movimientos",
+				model: "Movimiento",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre",
+					},
+
+					{
+						path: "stock",
+						model: "Stock",
+						populate: [
+							{
+								path: "producto",
+								model: "Producto",
+							},
+							{
+								path: "sucursal",
+								model: "Sucursal",
+								select: "municipio",
+							},
+						],
+					},
+				],
+			});
+
+		res.status(200).json(ventaCreada);
 	} catch (error) {
 		await session.abortTransaction();
 		session.endSession();
@@ -347,4 +516,4 @@ const pagarVenta = async (req, res) => {
 	}
 };
 
-module.exports = { crearVenta, obtenerVentas, pagarVenta };
+module.exports = { crearVenta, obtenerVentas, pagarVenta, obtenerVentaPorId };

@@ -1,4 +1,5 @@
-const { Cotizacion } = require("../models"); // Asegúrate de importar el modelo Cotizacion
+const { Cotizacion, Cliente, Usuario, Producto } = require("../models"); // Asegúrate de importar el modelo Cotizacion
+const mongoose = require("mongoose");
 
 // Función para obtener todas las cotizaciones de la base de datos
 const obtenerCotizaciones = async (req, res) => {
@@ -10,7 +11,8 @@ const obtenerCotizaciones = async (req, res) => {
 		let cotizaciones = await Cotizacion.find(query)
 			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
-			.populate("sucursal", "definicion")
+			.populate("sucursal", "municipio")
+			.populate("cliente")
 			.populate({
 				path: "productos.producto",
 				model: "Producto",
@@ -24,11 +26,6 @@ const obtenerCotizaciones = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
-					},
-					{
-						path: "cliente",
-						model: "Cliente",
-						select: "nombre nit ci",
 					},
 				],
 			});
@@ -78,7 +75,7 @@ const obtenerCotizacionPorId = async (req, res) => {
 		const cotizacion = await Cotizacion.findById(id)
 			.sort({ fecha: -1 })
 			.populate("usuario", "nombre")
-			.populate("sucursal", "definicion")
+			.populate("sucursal", "municipio")
 			.populate({
 				path: "productos.producto",
 				model: "Producto",
@@ -92,11 +89,6 @@ const obtenerCotizacionPorId = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
-					},
-					{
-						path: "cliente",
-						model: "Cliente",
-						select: "nombre nit ci",
 					},
 				],
 			});
@@ -122,48 +114,73 @@ const obtenerCotizacionPorId = async (req, res) => {
 	}
 };
 
-// Función para crear una nueva cotización y guardarla en la base de datos
 const crearCotizacion = async (req, res) => {
-	try {
-		// Obtener la información de la cotización desde la petición JSON
-		const { cliente, nit, fecha, productos } = req.body;
+	console.log("crearCotizacion");
 
-		// Verificar que los campos requeridos estén presentes
-		if (!cliente || !productos) {
-			return res.status(400).json({
-				message: "Faltan campos requeridos",
-			});
+	const session = await mongoose.startSession();
+	session.startTransaction();
+
+	try {
+		const { clienteId, clienteNombre, nit, ci, productos } = req.body;
+
+		let cliente;
+
+		if (!productos) {
+			return res.status(400).json({ message: "Faltan campos requeridos" });
 		}
 
-		// Extraer el ID del usuario desde la petición
+		if (clienteId) {
+			cliente = clienteId;
+		} else if (clienteNombre && (nit || ci)) {
+			const contadorClientes = await Cliente.countDocuments({}).session(
+				session
+			);
+			const nuevoCodigoCliente = `CLIENTE${String(
+				contadorClientes + 1
+			).padStart(3, "0")}`;
+
+			const nuevoCliente = new Cliente({
+				nombre: clienteNombre,
+				nit,
+				ci,
+				codigoCliente: nuevoCodigoCliente,
+			});
+
+			await nuevoCliente.save({ session });
+
+			cliente = nuevoCliente._id;
+		} else {
+			console.log("Error: Información del cliente incompleta");
+			return res
+				.status(400)
+				.json({ message: "Información del cliente incompleta" });
+		}
+
 		const usuario = req.usuario._id;
-
 		const sucursal = req.usuario.sucursal._id;
-
-		// Calcular el total de la cotización
 		const total = productos.reduce(
 			(acc, producto) => acc + producto.precioTotal,
 			0
 		);
 
-		// Crear una nueva instancia de Cotizacion con la información proporcionada
 		const nuevaCotizacion = new Cotizacion({
 			usuario,
 			cliente,
 			nit,
 			sucursal,
-			fecha,
 			productos,
 			total,
 		});
 
-		// Guardar la nueva cotización en la base de datos
 		await nuevaCotizacion.save();
 
-		// Poblar los campos necesarios
+		await session.commitTransaction();
+		session.endSession();
+
 		await nuevaCotizacion
 			.populate("usuario", "nombre")
-			.populate("sucursal", "definicion")
+			.populate("sucursal", "municipio")
+			.populate("cliente", "nombre nit ci codigoCliente estado")
 			.populate({
 				path: "productos.producto",
 				model: "Producto",
@@ -178,19 +195,18 @@ const crearCotizacion = async (req, res) => {
 						model: "Categoria",
 						select: "nombre",
 					},
-					{
-						path: "cliente",
-						model: "Cliente",
-						select: "nombre nit ci",
-					},
 				],
 			})
 			.execPopulate();
 
-		// Devolver una respuesta exitosa con la cotización creada
 		res.status(201).json(nuevaCotizacion);
+		console.log("nuevaCotizacion", nuevaCotizacion);
 	} catch (error) {
-		// Manejar posibles errores y devolver un mensaje de error
+		console.error("Error en la creación de la cotización:", error);
+
+		await session.abortTransaction();
+		session.endSession();
+
 		res.status(500).json({
 			message: "Ocurrió un error al crear la cotización",
 			error,
@@ -206,11 +222,11 @@ const actualizarCotizacion = async (req, res) => {
 
 		// Obtener la información de la cotización desde la petición JSON
 
-		const { cliente, nit, fecha, productos } = req.body;
+		const { productos } = req.body;
 
 		// Verificar que los campos requeridos estén presentes
 
-		if (!cliente || !productos) {
+		if (!productos) {
 			return res.status(400).json({
 				message: "Faltan campos requeridos",
 			});
@@ -237,8 +253,6 @@ const actualizarCotizacion = async (req, res) => {
 
 		// Actualizar la cotización con la información proporcionada
 
-		cotizacion.cliente = cliente;
-		cotizacion.nit = nit;
 		cotizacion.productos = productos;
 		cotizacion.total = total;
 
@@ -250,7 +264,8 @@ const actualizarCotizacion = async (req, res) => {
 
 		await cotizacion
 			.populate("usuario", "nombre")
-			.populate("sucursal", "definicion")
+			.populate("sucursal", "municipio")
+			.populate("cliente")
 			.populate({
 				path: "productos.producto",
 				model: "Producto",
@@ -285,10 +300,119 @@ const actualizarCotizacion = async (req, res) => {
 	}
 };
 
+function generarFechaAleatoria() {
+	const hoy = new Date();
+	const haceUnAno = new Date();
+	haceUnAno.setFullYear(hoy.getFullYear() - 1);
+	const diferencia = hoy.getTime() - haceUnAno.getTime();
+	const fechaAleatoria = new Date(
+		haceUnAno.getTime() + Math.random() * diferencia
+	);
+	return fechaAleatoria;
+}
+
+const simularCotizacionesMasivas = async (req, res) => {
+	try {
+		console.log("Iniciando simulación de cotizaciones...");
+		const usuarioId = req.usuario._id;
+		const usuario = await Usuario.findById(usuarioId);
+
+		if (!usuario) {
+			console.log("Usuario no encontrado");
+			return;
+		}
+
+		console.log(`Usuario ID: ${usuarioId}`);
+		const sucursalId = usuario.sucursal;
+		console.log(`Sucursal ID: ${sucursalId}`);
+
+		const cotizaciones = [];
+
+		for (let i = 0; i < 50; i++) {
+			console.log(`Iteración número ${i + 1}`);
+
+			const [clienteAleatorio] = await Cliente.aggregate([
+				{ $sample: { size: 1 } },
+			]);
+			console.log(`Cliente aleatorio seleccionado: ${clienteAleatorio._id}`);
+
+			const randomSize = Math.floor(Math.random() * 5) + 3;
+			console.log(`Número aleatorio de productos a seleccionar: ${randomSize}`);
+
+			const randomProductos = await Producto.aggregate([
+				{ $sample: { size: randomSize } },
+			]);
+			console.log("Productos aleatorios seleccionados");
+
+			let productos = [];
+			let total = 0;
+
+			randomProductos.forEach((producto) => {
+				console.log(`Procesando producto: ${producto._id}`);
+
+				const cantidadPiezas = 0;
+				const precioUnitarioPiezas = producto.precioPorUnidad;
+
+				const precioTotalPiezas = cantidadPiezas * precioUnitarioPiezas;
+
+				const cantidadCajas = Math.floor(Math.random() * 10) + 1;
+
+				// Añadiendo variación al precio unitario de las cajas
+				const variacionCajas = 0.85 + Math.random() * 0.3; // Variación de -15% a +15%
+
+				const precioUnitarioCajas = producto.precioCaja * variacionCajas;
+
+				const precioTotalCajas = cantidadCajas * precioUnitarioCajas;
+				const precioTotal = precioTotalCajas; // Como no estamos manejando piezas
+
+				productos.push({
+					producto: producto._id,
+					cantidadCajas,
+					cantidadPiezas,
+					precioUnitarioPiezas,
+					precioUnitarioCajas,
+					precioTotalPiezas,
+					precioTotalCajas,
+					precioTotal,
+				});
+
+				total += precioTotal;
+			});
+
+			console.log("Creando nuevo documento de Cotización...");
+
+			const cotizacion = new Cotizacion({
+				usuario: mongoose.Types.ObjectId(usuarioId),
+				cliente: mongoose.Types.ObjectId(clienteAleatorio._id),
+				sucursal: mongoose.Types.ObjectId(sucursalId),
+				fecha: generarFechaAleatoria(),
+				vendido: true,
+				productos,
+				total,
+			});
+
+			await cotizacion.save();
+			console.log("Cotización guardada con éxito.");
+
+			cotizaciones.push(cotizacion);
+		}
+
+		console.log("Todas las cotizaciones han sido creadas y guardadas.");
+		res.status(201).json({ cotizaciones });
+	} catch (error) {
+		console.error("Error: ", error);
+		res.status(500).json({ error: "Hubo un error al crear las cotizaciones" });
+	}
+};
+
+
+
+
 // Exportar la función para utilizarla en otros módulos
 module.exports = {
 	crearCotizacion,
 	obtenerCotizaciones,
 	obtenerCotizacionPorId,
 	actualizarCotizacion,
+	simularCotizacionesMasivas,
 };

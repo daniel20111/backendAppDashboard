@@ -6,7 +6,8 @@ const {
 	crearCotizacion,
 	obtenerCotizaciones,
 	obtenerCotizacionPorId,
-    actualizarCotizacion
+	actualizarCotizacion,
+	simularCotizacionesMasivas,
 } = require("../controllers/cotizaciones");
 
 const router = Router();
@@ -22,23 +23,12 @@ router.get("/", obtenerCotizaciones);
 router.get("/:id", obtenerCotizacionPorId);
 
 // Crear cotización - privado - cualquier persona con un token válido
-router.post(
-	"/",
-	[
-		validarJWT,
-		validarCampos,
-	],
-	crearCotizacion
-);
+router.post("/", [validarJWT, validarCampos], crearCotizacion);
 
-router.put(
-	"/:id",
-	[
-		validarJWT,
-		validarCampos,
-	],
-	actualizarCotizacion
-);
+// Simular cotizaciones masivas - privado - solo admin
+router.post("/simular", [validarJWT, esAdminRole], simularCotizacionesMasivas);
+
+router.put("/:id", [validarJWT, validarCampos], actualizarCotizacion);
 
 // Borrar una cotización - privado - solo admin
 /*router.delete(

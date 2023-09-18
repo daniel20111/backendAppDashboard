@@ -6,6 +6,11 @@ const UsuarioSchema = Schema({
 		required: [true, "El nombre es obligatorio"],
 		trim: true,
 	},
+	apellido: {
+		type: String,
+		required: [true, "El apellido es obligatorio"],
+		trim: true,
+	},
 	correo: {
 		type: String,
 		required: [true, "El correo es obligatorio"],
@@ -39,12 +44,18 @@ const UsuarioSchema = Schema({
 		ref: "Sucursal",
 	},
 	codigoPuntoVenta: {
-		type: Number, // Código del punto de venta dentro de la sucursal
+		type: Number,
+		default: 0, // Código del punto de venta dentro de la sucursal
+	},
+	codigoUsuario: {
+		type: String,
+		unique: true,
+		required: true, // Código del usuario dentro de la sucursal
 	},
 });
 
 UsuarioSchema.methods.toJSON = function () {
-	const { __v, password, _id, ...usuario } = this.toObject();
+	const { __v, password, _id, codigoPuntoVenta, ...usuario } = this.toObject();
 	usuario.uid = _id;
 	return usuario;
 };

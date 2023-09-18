@@ -1,11 +1,5 @@
 const { Schema, model } = require("mongoose");
 
-const HistorialSchema = Schema({
-	fecha: Date,
-	cantidadCajas: Number,
-	cantidadPiezas: Number,
-});
-
 const StockSchema = Schema({
 	cantidadCajas: {
 		type: Number,
@@ -16,6 +10,10 @@ const StockSchema = Schema({
 		type: Number,
 		default: 0,
 		required: true,
+	},
+	puntoReorden: {
+		type: Number,
+		default: 0
 	},
 	reservadoCajas: { type: Number, default: 0 },
 	reservadoPiezas: { type: Number, default: 0 },
@@ -36,7 +34,20 @@ const StockSchema = Schema({
 		default: Date.now,
 		required: true,
 	},
-	historial: [HistorialSchema],
+	historial: [
+		{
+			fecha: Date,
+			cantidadCajas: Number,
+			cantidadPiezas: Number,
+		},
+	],
+	estadisticasMensuales: [
+		{
+			year: Number,
+			month: Number,
+			totalCajas: Number,
+		},
+	],
 });
 
 StockSchema.methods.toJSON = function () {

@@ -7,6 +7,8 @@ const {
 	obtenerTodosLosStocks,
 	obtenerStocksPorId,
 	obtenerStockPorId,
+	poblarHistorialAleatorio,
+	actualizarEstadisticasMensuales,
 } = require("../controllers/stocks");
 
 const {
@@ -34,6 +36,8 @@ router.get(
 	],
 	obtenerStocksPorId
 );
+
+// Obtener stock por id - publico
 router.get(
 	"/:id",
 	[
@@ -43,6 +47,12 @@ router.get(
 		validarCampos,
 	],
 	obtenerStockPorId
+);
+
+// Poblar historial aleatorio - privado - cualquier persona con un token válido
+router.put(
+	"/poblar-historial-aleatorio/:id", // ID del stock que quieres actualizar
+	poblarHistorialAleatorio
 );
 
 module.exports = router;

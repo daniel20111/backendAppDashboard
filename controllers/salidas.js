@@ -23,7 +23,7 @@ const obtenerSalidas = async (req, res = response) => {
 						{
 							path: "sucursal",
 							model: "Sucursal",
-							select: "definicion",
+							select: "municipio",
 						},
 					],
 				})
@@ -67,7 +67,7 @@ const obtenerSalida = async (req, res = response) => {
 					{
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				],
 			})
@@ -119,7 +119,7 @@ const crearSalida = async (req, res = response) => {
 					{
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				],
 			})
@@ -200,7 +200,7 @@ const actualizarSalida = async (req, res = response) => {
 					{
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				],
 			})

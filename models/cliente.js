@@ -8,12 +8,14 @@ const ClienteSchema = Schema({
 	},
 	nit: {
 		type: String,
-		trim: true,
-		unique: true,
 	},
 	ci: {
 		type: String,
-		trim: true,
+	},
+
+	codigoCliente: {
+		type: String,
+		required: true,
 		unique: true,
 	},
 	estado: {

@@ -24,6 +24,7 @@ const MovimientoSchema = Schema({
 	movimiento: {
 		type: String,
 		required: true,
+		enum: ["ENTRADA", "SALIDA"],
 	},
 	verificado_por: {
 		type: Schema.Types.ObjectId,
@@ -32,7 +33,7 @@ const MovimientoSchema = Schema({
 	},
 	fecha_verificacion: {
 		type: Date,
-		default: null, // Establecer el valor predeterminado como null
+		default: null,
 	},
 	verificacion: {
 		type: String,

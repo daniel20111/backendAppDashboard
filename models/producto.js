@@ -55,6 +55,11 @@ const ProductoSchema = Schema({
 		],
 		default: "Sin determinar",
 	},
+	codigoProducto: {
+		type: String,
+		required: true,
+		unique: true,
+	},
 });
 
 ProductoSchema.methods.toJSON = function () {

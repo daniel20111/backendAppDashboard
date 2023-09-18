@@ -1,5 +1,6 @@
 const { response } = require("express");
 const { Producto, Categoria, Sucursal, Stock } = require("../models");
+const mongoose = require("mongoose");
 
 // Función para obtener todos los productos
 const obtenerProductos = async (req, res = response) => {
@@ -36,66 +37,108 @@ const obtenerProducto = async (req, res = response) => {
 };
 
 const crearProducto = async (req, res = response) => {
-	const { estado, usuario, categoria, ...body } = req.body;
+	const session = await mongoose.startSession();
+	session.startTransaction();
 
-	// Verificar si el producto ya existe
-	const productoDB = await Producto.findOne({ nombre: body.nombre });
+	try {
+		const { estado, usuario, categoria, ...body } = req.body;
 
-	if (productoDB) {
-		return res.status(400).json({
-			msg: `El producto ${productoDB.nombre}, ya existe`,
-		});
-	}
+		// Verificar si el producto ya existe
+		const productoDB = await Producto.findOne({ nombre: body.nombre }).session(
+			session
+		);
 
-	// Obtener la información de la categoría seleccionada
-	const categoriaDB = await Categoria.findById(categoria);
+		if (productoDB) {
+			await session.abortTransaction();
+			session.endSession();
+			return res.status(400).json({
+				msg: `El producto ${productoDB.nombre}, ya existe`,
+			});
+		}
 
-	if (!categoriaDB) {
-		return res.status(400).json({
-			msg: `La categoría seleccionada no existe`,
-		});
-	}
+		// Obtener la información de la categoría seleccionada
+		const categoriaDB = await Categoria.findById(categoria).session(session);
 
-	// Generar la data a guardar
-	const data = {
-		...body,
-		nombre: body.nombre,
-		usuario: req.usuario._id,
-		categoria: categoria,
-		precioCaja: body.precioCaja || categoriaDB.precioCaja,
-		precioPorUnidad: body.precioPorUnidad || categoriaDB.precioPorUnidad,
-	};
+		if (!categoriaDB) {
+			await session.abortTransaction();
+			session.endSession();
+			return res.status(400).json({
+				msg: `La categoría seleccionada no existe`,
+			});
+		}
 
-	// Crear una nueva instancia de Producto
-	const producto = new Producto(data);
+		// Generar el código del producto
+		const contadorProductos = await Producto.countDocuments({}).session(
+			session
+		);
+		const contadorFormateado = String(contadorProductos + 1).padStart(3, "0");
+		const dimensionesFormateadas = categoriaDB.dimensiones
+			.replace("x", "")
+			.replace("cm", "");
+		const unidadesPorCaja = String(categoriaDB.unidadesPorCaja).padStart(
+			2,
+			"0"
+		);
+		const codigoCategoria = `${categoriaDB.material.charAt(
+			0
+		)}${dimensionesFormateadas}${categoriaDB.acabado.charAt(
+			0
+		)}${unidadesPorCaja}`.toUpperCase();
+		const codigoProducto = `${codigoCategoria}${contadorFormateado}`;
 
-	// Guardar el producto en la base de datos
-	const nuevoProducto = await producto.save();
-	await nuevoProducto
-		.populate("usuario", "nombre") // Obtener información del usuario relacionado
-		.populate("categoria", "nombre") // Obtener información de la categoría relacionada
-		.execPopulate();
-
-	// Obtener todas las sucursales
-	const sucursales = await Sucursal.find({});
-
-	// Crear un stock con el nuevo producto para cada sucursal existente
-	for (const sucursal of sucursales) {
-		const stockData = {
-			cantidadCajas: 0,
-			cantidadPiezas: 0,
-			producto: nuevoProducto._id,
-			sucursal: sucursal._id,
+		// Generar la data a guardar
+		const data = {
+			...body,
+			nombre: body.nombre,
+			usuario: req.usuario._id,
+			categoria: categoria,
+			precioCaja: body.precioCaja || categoriaDB.precioCaja,
+			precioPorUnidad: body.precioPorUnidad || categoriaDB.precioPorUnidad,
+			codigoProducto, // Añadir el código del producto
 		};
 
-		const stock = new Stock(stockData);
-		await stock.save();
+		// Crear una nueva instancia de Producto
+		const producto = new Producto(data);
+
+		// Guardar el producto en la base de datos
+		await producto.save({ session });
+
+		// Obtener todas las sucursales
+		const sucursales = await Sucursal.find({}).session(session);
+
+		// Crear un stock con el nuevo producto para cada sucursal existente
+		for (const sucursal of sucursales) {
+			const stockData = {
+				cantidadCajas: 0,
+				cantidadPiezas: 0,
+				producto: producto._id,
+				sucursal: sucursal._id,
+			};
+
+			const stock = new Stock(stockData);
+			await stock.save({ session });
+		}
+
+		// Commit the transaction
+		await session.commitTransaction();
+		session.endSession();
+
+		await producto
+			.populate("usuario", "nombre") // Obtener información del usuario relacionado
+			.populate("categoria", "nombre") // Obtener información de la categoría relacionada
+			.execPopulate();
+
+		res.status(201).json(producto);
+	} catch (error) {
+		await session.abortTransaction();
+		session.endSession();
+		console.error(error);
+		res.status(500).json({
+			success: false,
+			message: "Error al crear el producto",
+		});
 	}
-
-	// Devolver el producto creado
-	res.status(201).json(nuevoProducto);
 };
-
 // Función para actualizar un producto
 const actualizarProducto = async (req, res = response) => {
 	const { id } = req.params;

@@ -12,6 +12,7 @@ const DetalleSchema = Schema({
 	subTotal: { type: Number, required: true },
 	numeroSerie: { type: String },
 	numeroImei: { type: String },
+	productoNombre: { type: String, required: true },
 });
 
 // Esquema principal de la factura
@@ -59,5 +60,10 @@ const FacturaSchema = Schema({
 	codigoDocumentoSector: { type: Number, default: 1 },
 	detalles: [DetalleSchema], // Lista de detalles de la factura
 });
+
+FacturaSchema.methods.toJSON = function () {
+	const { __v, ...data } = this.toObject();
+	return data;
+};
 
 module.exports = model("Factura", FacturaSchema);

@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "big-integer": "^1.6.51",
     "cloudinary": "^1.24.0",
     "color-thief-node": "^1.0.4",
     "cors": "^2.8.5",
@@ -22,9 +23,12 @@
     "jimp": "^0.22.7",
     "jsonwebtoken": "^8.5.1",
     "kmeans-js": "^0.1.2",
+    "mathjs": "^11.11.0",
     "moment": "^2.29.4",
     "mongoose": "^5.11.15",
+    "node-cron": "^3.0.2",
     "node-kmeans": "^1.1.9",
+    "simple-statistics": "^7.8.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

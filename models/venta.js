@@ -24,9 +24,18 @@ const VentaSchema = Schema({
 	movimientos: [
 		{
 			type: Schema.Types.ObjectId,
-			ref: "Movimiento"
-		}
-	]
+			ref: "Movimiento",
+		},
+	],
+	facturado: {
+		type: Boolean,
+		default: false,
+		required: true,
+	},
+	factura: {
+		type: Schema.Types.ObjectId,
+		ref: "Factura",
+	},
 });
 
 VentaSchema.methods.toJSON = function () {

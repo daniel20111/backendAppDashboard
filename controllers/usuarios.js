@@ -1,6 +1,6 @@
 const { response, request } = require("express");
 const bcryptjs = require("bcryptjs");
-
+const mongoose = require("mongoose");
 const Usuario = require("../models/usuario");
 const { generarJWT } = require("../helpers");
 
@@ -45,25 +45,58 @@ const usuariosGet = async (req = request, res = response) => {
 };
 
 const usuariosPost = async (req, res = response) => {
-	const { nombre, correo, password, rol, sucursal } = req.body;
-	const usuario = new Usuario({ nombre, correo, password, rol, sucursal });
+	const session = await mongoose.startSession();
+	session.startTransaction();
 
-	// Encriptar la contraseña
-	const salt = bcryptjs.genSaltSync();
-	usuario.password = bcryptjs.hashSync(password, salt);
+	try {
+		const { nombre, apellido, correo, password, rol, sucursal } = req.body;
+		const usuario = new Usuario({
+			nombre,
+			apellido,
+			correo,
+			password,
+			rol,
+			sucursal,
+		});
 
-	// Guardar en BD
-	await usuario.save();
+		// Encriptar la contraseña
+		const salt = bcryptjs.genSaltSync();
+		usuario.password = bcryptjs.hashSync(password, salt);
 
-	const usuarioResp = await Usuario.findById(usuario.id).populate({
-		path: "sucursal",
-		populate: {
-			path: "usuario",
-			select: "_id nombre", // Asegúrate de seleccionar solo los campos que necesitas en la respuesta
-		},
-	});
+		// Generar el código de usuario
+		const contadorUsuarios = await Usuario.countDocuments({}).session(session);
+		const primeraLetraNombre = nombre.charAt(0).toUpperCase();
+		const apellidoMayuscula = apellido.toUpperCase();
+		const contadorFormateado = String(contadorUsuarios + 1).padStart(3, "0");
 
-	res.json(usuarioResp);
+		usuario.codigoUsuario = `${primeraLetraNombre}${apellidoMayuscula}${contadorFormateado}`;
+
+		// Guardar en BD
+		await usuario.save({ session });
+
+		const usuarioResp = await Usuario.findById(usuario.id)
+			.populate({
+				path: "sucursal",
+				populate: {
+					path: "usuario",
+					select: "_id nombre apellido",
+				},
+			})
+			.session(session);
+
+		await session.commitTransaction();
+		session.endSession();
+
+		res.json(usuarioResp);
+	} catch (error) {
+		await session.abortTransaction();
+		session.endSession();
+		console.error(error);
+		res.status(500).json({
+			success: false,
+			message: "Error al crear el usuario",
+		});
+	}
 };
 
 const usuariosPut = async (req, res = response) => {

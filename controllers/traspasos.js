@@ -19,7 +19,7 @@ const obtenerTraspasos = async (req, res = response) => {
 					model: "Stock",
 					populate: [
 						{ path: "producto", model: "Producto", select: "nombre img" },
-						{ path: "sucursal", model: "Sucursal", select: "definicion" },
+						{ path: "sucursal", model: "Sucursal", select: "municipio" },
 					],
 				},
 			})
@@ -31,7 +31,7 @@ const obtenerTraspasos = async (req, res = response) => {
 					model: "Stock",
 					populate: [
 						{ path: "producto", model: "Producto", select: "nombre img" },
-						{ path: "sucursal", model: "Sucursal", select: "definicion" },
+						{ path: "sucursal", model: "Sucursal", select: "municipio" },
 					],
 				},
 			}),
@@ -140,7 +140,7 @@ const crearTraspaso = async (req, res = response) => {
 					populate: {
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				},
 			],
@@ -164,7 +164,7 @@ const crearTraspaso = async (req, res = response) => {
 					populate: {
 						path: "sucursal",
 						model: "Sucursal",
-						select: "definicion",
+						select: "municipio",
 					},
 				},
 			],

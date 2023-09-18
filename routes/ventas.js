@@ -6,6 +6,7 @@ const {
 	crearVenta,
 	obtenerVentas,
 	pagarVenta,
+	obtenerVentaPorId,
 } = require("../controllers/ventas");
 
 const router = Router();
@@ -16,6 +17,10 @@ const router = Router();
 
 //  Obtener todas las cotizaciones - público
 router.get("/", obtenerVentas);
+
+// Obtener una venta por id - público
+router.get("/:id", obtenerVentaPorId);
+
 
 // Crear venta - privado - cualquier persona con un token válido
 router.post("/", [validarJWT, validarCampos], crearVenta);

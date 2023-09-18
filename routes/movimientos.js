@@ -1,16 +1,13 @@
 const { Router } = require("express");
-const { check } = require("express-validator");
 
 const { validarJWT, validarCampos, esAdminRole } = require("../middlewares");
 
 const {
-	existeCategoriaPorId,
-	existeProductoPorId,
-} = require("../helpers/db-validators");
-const {
 	obtenerMovimientos,
 	buscarMovimientos,
 	obtenerMovimientosPorVenta,
+	simularVentas,
+	calculateEOQMetrics,
 } = require("../controllers/movimientos");
 
 const router = Router();
@@ -18,5 +15,8 @@ const router = Router();
 router.get("/", obtenerMovimientos);
 router.get("/buscar", buscarMovimientos);
 router.get("/venta/:ventaId", obtenerMovimientosPorVenta);
+
+router.post("/simular", [validarJWT, validarCampos], simularVentas);
+router.post("/eoq", calculateEOQMetrics);
 
 module.exports = router;
