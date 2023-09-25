@@ -300,8 +300,6 @@ const calculateEOQMetrics = async (req, res) => {
 	const costoPedido = 120; // en bolivianos
 	const costoInventario = buscarStock.producto.precioCaja * 0.05; // en bolivianos por caja por año
 	const costoEscasez = buscarStock.producto.precioCaja * 0.5; // en bolivianos
-	const capacidadMaxima = 3000; // capacidad máxima del almacén en cajas
-	const maximoPorPedido = 100; // máximo de cajas por pedido
 	const semanasAnuales = 52; // semanas en un año
 
 	const lastYear = moment().subtract(1, "years").toDate();
@@ -403,81 +401,10 @@ const calculateEOQMetrics = async (req, res) => {
 	}
 };
 
-
-// Función principal para calcular métricas EOQ
-const calculateMonteCarloSimulation = async (req, res) => {
-	console.log("Inicio de la función calculateEOQMetrics");
-
-	// Recuperando el stock desde el cuerpo de la petición
-	const { stock } = req.body;
-
-	const lastYear = moment().subtract(1, "years").toDate();
-
-	try {
-		// Obteniendo los movimientos relacionados al stock
-		const movimientos = await Movimiento.find({
-			stock: stock,
-			venta: { $ne: null },
-			fecha: { $gte: lastYear },
-		});
-
-		let muestras = [];
-		movimientos.forEach((mov) => muestras.push(mov.cantidadCajas));
-		muestras.sort((a, b) => a - b);
-
-		// Calculando estadísticas descriptivas: media y desviación estándar
-		const media = ss.mean(muestras);
-		const desviacionTipica = ss.standardDeviation(muestras);
-
-		// Cálculo de la demanda anual
-		const demandaAnual = muestras.reduce((a, b) => a + b, 0);
-
-		// Función de distribución acumulativa teórica para la normal
-		const F_teo_normal = (x) =>
-			ss.cumulativeStdNormalProbability((x - media) / desviacionTipica);
-
-		// Función de distribución acumulativa teórica para la exponencial
-		const lambda = 1 / media;
-		const F_teo_exponencial = (x) => 1 - Math.exp(-lambda * x);
-
-		// Función de distribución acumulativa teórica para la binomial
-		const n = 20;
-		const p = 0.5;
-		const F_teo_binomial = (x) => binomialCDF(x, n, p);
-
-		// Ejecutando test de Kolmogorov-Smirnov para cada distribución
-		const resultadoNormal = testKolmogorov(muestras, F_teo_normal);
-		const resultadoExponencial = testKolmogorov(muestras, F_teo_exponencial);
-		const resultadoBinomial = testKolmogorov(muestras, F_teo_binomial);
-
-
-
-
-		// Devolviendo los resultados
-		res.status(200).json({
-			media: media,
-			sigmaX: sigmaX,
-			desviacionTipica: desviacionTipica,
-			demandaAnual: demandaAnual,
-			normal: resultadoNormal,
-			exponencial: resultadoExponencial,
-			binomial: resultadoBinomial,
-		});
-	} catch (error) {
-		console.log("Hubo un error al calcular las métricas EOQ:", error);
-		res.status(500).json({
-			msg: "Hubo un error al calcular las métricas EOQ",
-			error,
-		});
-	}
-};
-
-
 module.exports = {
 	obtenerMovimientos,
 	buscarMovimientos,
 	obtenerMovimientosPorVenta,
 	simularVentas,
 	calculateEOQMetrics,
-	calculateMonteCarloSimulation,
 };

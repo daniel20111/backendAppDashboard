@@ -8,6 +8,7 @@ const {
 	obtenerCotizacionPorId,
 	actualizarCotizacion,
 	simularCotizacionesMasivas,
+	simularDemandaRespectoAlPrecio,
 } = require("../controllers/cotizaciones");
 
 const router = Router();
@@ -28,7 +29,15 @@ router.post("/", [validarJWT, validarCampos], crearCotizacion);
 // Simular cotizaciones masivas - privado - solo admin
 router.post("/simular", [validarJWT, esAdminRole], simularCotizacionesMasivas);
 
+//Actualizar cotizacion
 router.put("/:id", [validarJWT, validarCampos], actualizarCotizacion);
+
+//simular demanda respecto al precio
+router.put(
+	"/simular_demanda/:id",
+	[validarJWT, esAdminRole],
+	simularDemandaRespectoAlPrecio
+);
 
 // Borrar una cotización - privado - solo admin
 /*router.delete(

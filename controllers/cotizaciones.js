@@ -1,5 +1,6 @@
 const { Cotizacion, Cliente, Usuario, Producto } = require("../models"); // Asegúrate de importar el modelo Cotizacion
 const mongoose = require("mongoose");
+const simpleStats = require("simple-statistics");
 
 // Función para obtener todas las cotizaciones de la base de datos
 const obtenerCotizaciones = async (req, res) => {
@@ -405,8 +406,267 @@ const simularCotizacionesMasivas = async (req, res) => {
 	}
 };
 
+// Función para determinar la distribución de probabilidad de una muestra
+const kolmogorovSmirnovTest = (sample, theoreticalCDF) => {
+	if (typeof theoreticalCDF !== "function") {
+		throw new Error("theoreticalCDF debe ser una función");
+	}
 
+	const n = sample.length;
+	const sortedSample = sample.sort((a, b) => a - b);
 
+	let d = 0;
+	for (let i = 0; i < n; i++) {
+		const x = sortedSample[i];
+		const empiricalCDF = (i + 1) / n;
+		const absoluteDiff = Math.abs(empiricalCDF - theoreticalCDF(x));
+		if (absoluteDiff > d) {
+			d = absoluteDiff;
+		}
+	}
+	return d;
+};
+
+//Funciones para determinar las CDF de una muestra
+const normalCDF = (mean, stdev) => (x) => {
+	return 0.5 * (1 + simpleStats.erf((x - mean) / (Math.sqrt(2) * stdev)));
+};
+
+const geometricCDF = (p) => (x) => {
+	return 1 - Math.pow(1 - p, x);
+};
+
+const binomialCDF = (n, p) => (x) => {
+	let cdf = 0;
+
+	for (let k = 0; k <= x; k++) {
+		// Calcular coeficiente binomial (n choose k)
+		let coeff = 1;
+		for (let i = 0; i < k; i++) {
+			coeff *= (n - i) / (i + 1);
+		}
+
+		// Agregar la probabilidad de k éxitos
+		cdf += coeff * Math.pow(p, k) * Math.pow(1 - p, n - k);
+	}
+
+	return cdf;
+};
+
+// Función para generar un número aleatorio siguiendo una distribución normal
+const randomNormal = (mean, stdev) => {
+	let u1 = 0,
+		u2 = 0;
+	while (u1 === 0) u1 = Math.random(); // Converte [0,1) a (0,1)
+	while (u2 === 0) u2 = Math.random();
+	const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+	return z0 * stdev + mean;
+};
+
+// Función para generar un número aleatorio siguiendo una distribución geométrica
+const randomGeometric = (p) => {
+	return Math.ceil(Math.log(1 - Math.random()) / Math.log(1 - p));
+};
+
+// Función para generar un número aleatorio siguiendo una distribución binomial
+const randomBinomial = (n, p) => {
+	let x = 0;
+	for (let i = 0; i < n; i++) {
+		if (Math.random() < p) x++;
+	}
+	return x;
+};
+
+//Funcion para simular la demanda de un producto respecto al precio
+const simularDemandaRespectoAlPrecio = async (req, res) => {
+	try {
+		const { id: productoId } = req.params;
+
+		if (!productoId) {
+			return res.status(400).send("El campo productoId es requerido");
+		}
+
+		const { precio, cantidad } = req.body;
+
+		if (!productoId || !precio || !cantidad) {
+			return res
+				.status(400)
+				.send("Los campos productoId, precio y cantidad son requeridos");
+		}
+
+		const oneYearAgo = new Date();
+		oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+		// Primera agregación para obtener estadísticas
+		const stats = await Cotizacion.aggregate([
+			{ $unwind: "$productos" },
+			{
+				$match: {
+					"productos.producto": mongoose.Types.ObjectId(productoId),
+					vendido: true,
+					fecha: { $gte: oneYearAgo },
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					maxPrice: { $max: "$productos.precioUnitarioCajas" },
+					minPrice: { $min: "$productos.precioUnitarioCajas" },
+					count: { $sum: 1 },
+				},
+			},
+		]);
+
+		const maxPrice = stats[0].maxPrice;
+		const minPrice = stats[0].minPrice;
+		const count = stats[0].count;
+		const numClasses = Math.ceil(1 + 3.322 * Math.log10(count));
+		const interval = (maxPrice - minPrice) / numClasses;
+
+		// Segunda agregación para agrupar datos
+		const aggregateData = await Cotizacion.aggregate([
+			{ $unwind: "$productos" },
+			{
+				$match: {
+					"productos.producto": mongoose.Types.ObjectId(productoId),
+					vendido: true,
+					fecha: { $gte: oneYearAgo },
+				},
+			},
+			{
+				$project: {
+					intervalIndex: {
+						$floor: {
+							$divide: [
+								{ $subtract: ["$productos.precioUnitarioCajas", minPrice] },
+								interval,
+							],
+						},
+					},
+					cantidadCajas: "$productos.cantidadCajas",
+				},
+			},
+			{
+				$group: {
+					_id: "$intervalIndex",
+					cajasTotales: { $sum: "$cantidadCajas" },
+				},
+			},
+			{
+				$project: {
+					lowerBound: { $add: [minPrice, { $multiply: ["$_id", interval] }] },
+					upperBound: {
+						$add: [minPrice, { $multiply: [{ $add: ["$_id", 1] }, interval] }],
+					},
+					cajasTotales: 1,
+				},
+			},
+			{ $sort: { _id: 1 } },
+		]);
+		const samplePrices = aggregateData.map(
+			(d) => (d.lowerBound + d.upperBound) / 2
+		);
+		const sampleCounts = aggregateData.map((d) => d.cajasTotales);
+		const sample = [];
+
+		for (let i = 0; i < samplePrices.length; i++) {
+			for (let j = 0; j < sampleCounts[i]; j++) {
+				sample.push(samplePrices[i]);
+			}
+		}
+
+		const mean = simpleStats.mean(sample);
+		const stdev = simpleStats.standardDeviation(sample);
+
+		// Aplicando el test de Kolmogorov-Smirnov
+		if (
+			typeof normalCDF(mean, stdev) !== "function" ||
+			typeof geometricCDF(1 / mean) !== "function" ||
+			typeof binomialCDF(sample.length, mean / sample.length) !== "function"
+		) {
+			throw new Error(
+				"Una de las funciones CDF no está devolviendo una función"
+			);
+		}
+
+		const dNormal = kolmogorovSmirnovTest(sample, normalCDF(mean, stdev));
+		const dGeometric = kolmogorovSmirnovTest(sample, geometricCDF(1 / mean));
+		const dBinomial = kolmogorovSmirnovTest(
+			sample,
+			binomialCDF(sample.length, mean / sample.length)
+		);
+
+		// Determinar qué distribución se ajusta mejor
+		const minD = Math.min(dNormal, dGeometric, dBinomial);
+		let bestFit = "";
+
+		if (minD === dNormal) bestFit = "Normal";
+		else if (minD === dGeometric) bestFit = "Geométrica";
+		else if (minD === dBinomial) bestFit = "Binomial";
+
+		let intervaloAfectado;
+		for (const d of aggregateData) {
+			if (precio >= d.lowerBound && precio <= d.upperBound) {
+				intervaloAfectado = d;
+				break;
+			}
+		}
+
+		//simulacion de Monte Carlo
+		let ajusteDemanda = 1; // Factor de ajuste inicial
+		if (intervaloAfectado) {
+			ajusteDemanda =
+				intervaloAfectado.cajasTotales /
+				sampleCounts.reduce((a, b) => a + b, 0);
+		}
+
+		let bestFitFunc;
+		if (bestFit === "Normal") {
+			bestFitFunc = () => randomNormal(mean, stdev) * ajusteDemanda;
+		} else if (bestFit === "Geométrica") {
+			bestFitFunc = () => randomGeometric(1 / mean) * ajusteDemanda;
+		} else if (bestFit === "Binomial") {
+			bestFitFunc = () =>
+				randomBinomial(sample.length, mean / sample.length) * ajusteDemanda;
+		} else {
+			throw new Error("Distribución desconocida");
+		}
+
+		let stockRestante = cantidad;
+		let mes = 0;
+
+		const NUM_SIMULACIONES = 1000;
+		let mesesParaAgotarStock = 0;
+
+		for (let i = 0; i < NUM_SIMULACIONES; i++) {
+			stockRestante = cantidad;
+			mes = 0;
+			while (stockRestante > 0) {
+				let demandaMensual = bestFitFunc();
+				stockRestante -= demandaMensual;
+				mes++;
+			}
+			mesesParaAgotarStock += mes;
+		}
+
+		const promedioMeses = mesesParaAgotarStock / NUM_SIMULACIONES;
+
+		res.status(200).json({
+			message: "SImular demanda respecto al precio exitoso",
+			data: aggregateData,
+			kolmogorovSmirnovResults: {
+				dNormal,
+				dGeometric,
+				dBinomial,
+				bestFit,
+			},
+			mesesPromedioParaAgotarStock: promedioMeses,
+		});
+	} catch (err) {
+		console.error(err);
+		res.status(500).send("Error interno del servidor");
+	}
+};
 
 // Exportar la función para utilizarla en otros módulos
 module.exports = {
@@ -415,4 +675,5 @@ module.exports = {
 	obtenerCotizacionPorId,
 	actualizarCotizacion,
 	simularCotizacionesMasivas,
+	simularDemandaRespectoAlPrecio,
 };
