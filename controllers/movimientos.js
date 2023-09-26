@@ -4,6 +4,7 @@ const { Stock } = require("../models");
 const moment = require("moment");
 const ss = require("simple-statistics");
 const math = require("mathjs");
+const cron = require("node-cron");
 
 //
 const obtenerMovimientos = async (req, res = response) => {
@@ -274,12 +275,8 @@ const calcularReordenExponencial = (lambda, nivelServicio) => {
 	return -Math.log(1 - nivelServicio) / lambda;
 };
 
-const calcularReordenBinomial = (n, p, nivelServicio) => {
-	let x = 0;
-	while (binomialCDF(x, n, p) < nivelServicio) {
-		x++;
-	}
-	return x;
+const calcularReordenUniforme = (a, b, nivelServicio) => {
+	return a + (b - a) * nivelServicio;
 };
 
 // Función principal para calcular métricas EOQ
@@ -331,18 +328,20 @@ const calculateEOQMetrics = async (req, res) => {
 		const lambda = 1 / media;
 		const F_teo_exponencial = (x) => 1 - Math.exp(-lambda * x);
 
-		// Función de distribución acumulativa teórica para la binomial
-		const n = 20;
-		const p = 0.5;
-		const F_teo_binomial = (x) => binomialCDF(x, n, p);
+		// Función de distribución acumulativa teórica para la uniforme
+		const a = Math.min(...muestras);
+		const b = Math.max(...muestras);
+		const F_teo_uniforme = (x) => (x - a) / (b - a);
 
 		// Ejecutando test de Kolmogorov-Smirnov para cada distribución
 		const resultadoNormal = testKolmogorov(muestras, F_teo_normal);
 		const resultadoExponencial = testKolmogorov(muestras, F_teo_exponencial);
-		const resultadoBinomial = testKolmogorov(muestras, F_teo_binomial);
+		const resultadoUniforme = testKolmogorov(muestras, F_teo_uniforme);
 
 		//Calculando EOQ
-		const EOQ = Math.sqrt((2 * demandaAnual * costoPedido) / costoInventario);
+		const EOQ = Math.round(
+			Math.sqrt((2 * demandaAnual * costoPedido) / costoInventario)
+		);
 
 		// Cálculos para E[X] y sigma_X
 		const EX = (demandaAnual / semanasAnuales) * leadTime;
@@ -351,19 +350,17 @@ const calculateEOQMetrics = async (req, res) => {
 
 		//Calculo del punto de reorden
 
-		let R;
+		let R = "Indeterminado";
 
 		if (resultadoNormal === "Sigue la distribución") {
 			const Z = 1.65; // Nivel de confianza para la normal
-			R = calcularReordenNormal(EX, sigmaX, Z);
+			R = Math.round(calcularReordenNormal(EX, sigmaX, Z));
 		} else if (resultadoExponencial === "Sigue la distribución") {
 			const nivelServicio = 0.95; // Nivel de servicio deseado
-			R = calcularReordenExponencial(lambda, nivelServicio);
-		} else if (resultadoBinomial === "Sigue la distribución") {
+			R = Math.round(calcularReordenExponencial(lambda, nivelServicio));
+		} else if (resultadoUniforme === "Sigue la distribución") {
 			const nivelServicio = 0.95; // Nivel de servicio deseado
-			R = calcularReordenBinomial(n, p, nivelServicio);
-		} else {
-			R = "Indeterminado";
+			R = Math.round(calcularReordenUniforme(a, b, nivelServicio));
 		}
 
 		// Añadido: Calcular el nivel de seguridad
@@ -375,22 +372,31 @@ const calculateEOQMetrics = async (req, res) => {
 		// Añadido: Calcular la probabilidad de un stockout
 		const probStockout = 1 - ss.cumulativeStdNormalProbability(Z_R);
 
+		// Actualizar el stock con los resultados
+		if (R !== "Indeterminado") {
+			await Stock.findByIdAndUpdate(stock, {
+				puntoReorden: R,
+				EOQ: EOQ,
+				nivelSeguridad: nivelSeguridad,
+			});
+		}
+
 		// Devolviendo los resultados
 		res.status(200).json({
-			costoDeCajaInventarioAnual: costoInventario,
-			costoEscasez: costoEscasez,
-			media: media,
-			EOQ: EOQ,
-			EX: EX,
-			sigmaX: sigmaX,
-			desviacionTipica: desviacionTipica,
-			demandaAnual: demandaAnual,
+			costoDeCajaInventarioAnual: Math.round(costoInventario),
+			costoEscasez: Math.round(costoEscasez),
+			media: Math.round(media),
+			EOQ: Math.round(EOQ),
+			EX: Math.round(EX),
+			sigmaX: Math.round(sigmaX),
+			desviacionTipica: Math.round(desviacionTipica),
+			demandaAnual: Math.round(demandaAnual),
 			normal: resultadoNormal,
 			exponencial: resultadoExponencial,
-			binomial: resultadoBinomial,
-			R: R,
-			nivelSeguridad: nivelSeguridad,
-			probStockout: probStockout,
+			uniforme: resultadoUniforme,
+			R: Math.round(R),
+			nivelSeguridad: Math.round(nivelSeguridad),
+			probStockout: Math.round(probStockout * 100), // Si es una probabilidad, podrías querer multiplicarla por 100 para convertirla en un porcentaje
 		});
 	} catch (error) {
 		console.log("Hubo un error al calcular las métricas EOQ:", error);
@@ -400,6 +406,124 @@ const calculateEOQMetrics = async (req, res) => {
 		});
 	}
 };
+
+const calculateAllEOQMetrics = async () => {
+	try {
+		const allStocks = await Stock.find().populate("producto", "precioCaja");
+		const results = [];
+
+		for (const stock of allStocks) {
+			const leadTime = 1; // en semanas
+			const costoPedido = 120; // en bolivianos
+			const costoInventario = stock.producto.precioCaja * 0.05; // en bolivianos por caja por año
+			const costoEscasez = stock.producto.precioCaja * 0.5; // en bolivianos
+			const semanasAnuales = 52; // semanas en un año
+			const lastYear = moment().subtract(1, "years").toDate();
+
+			const movimientos = await Movimiento.find({
+				stock: stock._id,
+				venta: { $ne: null },
+				fecha: { $gte: lastYear },
+			});
+
+			let muestras = [];
+			movimientos.forEach((mov) => muestras.push(mov.cantidadCajas));
+			muestras.sort((a, b) => a - b);
+
+			if (muestras.length === 0) {
+				console.log(
+					`No hay datos suficientes para el stock con ID ${stock._id}`
+				);
+				continue; // Saltar a la siguiente iteración del bucle
+			}
+
+			const media = ss.mean(muestras);
+			const desviacionTipica = ss.standardDeviation(muestras);
+			const demandaAnual = muestras.reduce((a, b) => a + b, 0);
+
+			const EOQ = Math.round(
+				Math.sqrt((2 * demandaAnual * costoPedido) / costoInventario)
+			);
+
+			const EX = (demandaAnual / semanasAnuales) * leadTime;
+			const sigmaX =
+				(desviacionTipica / Math.sqrt(semanasAnuales)) * Math.sqrt(leadTime);
+
+			// Función de distribución acumulativa teórica para la normal
+			const F_teo_normal = (x) =>
+				ss.cumulativeStdNormalProbability((x - media) / desviacionTipica);
+
+			// Función de distribución acumulativa teórica para la exponencial
+			const lambda = 1 / media;
+			const F_teo_exponencial = (x) => 1 - Math.exp(-lambda * x);
+
+			// Función de distribución acumulativa teórica para la uniforme
+			const a = Math.min(...muestras);
+			const b = Math.max(...muestras);
+			const F_teo_uniforme = (x) => (x - a) / (b - a);
+
+			// Ejecutando test de Kolmogorov-Smirnov para cada distribución
+			const resultadoNormal = testKolmogorov(muestras, F_teo_normal);
+			const resultadoExponencial = testKolmogorov(muestras, F_teo_exponencial);
+			const resultadoUniforme = testKolmogorov(muestras, F_teo_uniforme);
+
+			let R = "Indeterminado";
+
+			if (resultadoNormal === "Sigue la distribución") {
+				const Z = 1.65; // Nivel de confianza para la normal
+				R = Math.round(calcularReordenNormal(EX, sigmaX, Z));
+			} else if (resultadoExponencial === "Sigue la distribución") {
+				const nivelServicio = 0.95; // Nivel de servicio deseado
+				R = Math.round(calcularReordenExponencial(lambda, nivelServicio));
+			} else if (resultadoUniforme === "Sigue la distribución") {
+				const nivelServicio = 0.95; // Nivel de servicio deseado
+				R = Math.round(calcularReordenUniforme(a, b, nivelServicio));
+			}
+
+			// Añadido: Calcular el nivel de seguridad
+			const nivelSeguridad = Math.round(R - EX);
+
+			const nivelSeguridadCorregido = Object.is(nivelSeguridad, -0)
+				? 0
+				: nivelSeguridad;
+
+			// Calcular Z para el nivel de reorden R
+			const Z_R = (R - EX) / sigmaX;
+
+			// Añadido: Calcular la probabilidad de un stockout
+			const probStockout = 1 - ss.cumulativeStdNormalProbability(Z_R);
+
+			const eoqResult = {
+				stockId: stock._id,
+				EOQ: EOQ,
+				R: R,
+				nivelSeguridad: nivelSeguridadCorregido,
+				probStockout: probStockout,
+			};
+
+			results.push(eoqResult);
+
+			// Actualizar el stock con los resultados
+			if (R !== "Indeterminado") {
+				await Stock.findByIdAndUpdate(stock._id, {
+					puntoReorden: R,
+					eoq: EOQ,
+					nivelSeguridad: nivelSeguridadCorregido,
+				});
+			}
+		}
+
+		console.log(results);
+		// Aquí podrías guardar los resultados en la base de datos o hacer algo más con ellos
+	} catch (error) {
+		console.log(
+			"Hubo un error al calcular las métricas EOQ para todos los stocks:",
+			error
+		);
+	}
+};
+
+//cron.schedule("*/1 * * * *", calculateAllEOQMetrics);
 
 module.exports = {
 	obtenerMovimientos,

@@ -13,7 +13,19 @@ const StockSchema = Schema({
 	},
 	puntoReorden: {
 		type: Number,
-		default: 0
+		default: 0,
+	},
+	eoq: {
+		type: Number,
+		default: 0,
+	},
+	nivelSegurdad: {
+		type: Number,
+		default: 0,
+	},
+	probAgotamiento: {
+		type: Number,
+		default: 0,
 	},
 	reservadoCajas: { type: Number, default: 0 },
 	reservadoPiezas: { type: Number, default: 0 },

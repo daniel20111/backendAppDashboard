@@ -248,7 +248,7 @@ const actualizarTodosLosStocks = async () => {
 };
 
 // Programar la tarea para que se ejecute cada cierto tiempo (por ejemplo, cada día a las 2 a.m.)
-cron.schedule("*/5 * * * *", actualizarTodosLosStocks);
+//cron.schedule("*/5 * * * *", actualizarTodosLosStocks);
 
 module.exports = {
 	obtenerTodosLosStocks,

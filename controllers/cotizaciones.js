@@ -432,25 +432,14 @@ const normalCDF = (mean, stdev) => (x) => {
 	return 0.5 * (1 + simpleStats.erf((x - mean) / (Math.sqrt(2) * stdev)));
 };
 
-const geometricCDF = (p) => (x) => {
-	return 1 - Math.pow(1 - p, x);
+const uniformCDF = (a, b) => (x) => {
+	if (x < a) return 0;
+	if (x > b) return 1;
+	return (x - a) / (b - a);
 };
 
-const binomialCDF = (n, p) => (x) => {
-	let cdf = 0;
-
-	for (let k = 0; k <= x; k++) {
-		// Calcular coeficiente binomial (n choose k)
-		let coeff = 1;
-		for (let i = 0; i < k; i++) {
-			coeff *= (n - i) / (i + 1);
-		}
-
-		// Agregar la probabilidad de k éxitos
-		cdf += coeff * Math.pow(p, k) * Math.pow(1 - p, n - k);
-	}
-
-	return cdf;
+const exponentialCDF = (lambda) => (x) => {
+	return 1 - Math.exp(-lambda * x);
 };
 
 // Función para generar un número aleatorio siguiendo una distribución normal
@@ -463,18 +452,14 @@ const randomNormal = (mean, stdev) => {
 	return z0 * stdev + mean;
 };
 
-// Función para generar un número aleatorio siguiendo una distribución geométrica
-const randomGeometric = (p) => {
-	return Math.ceil(Math.log(1 - Math.random()) / Math.log(1 - p));
+// Función para generar un número aleatorio siguiendo una distribución uniforme
+const randomUniform = (a, b) => {
+	return a + (b - a) * Math.random();
 };
 
-// Función para generar un número aleatorio siguiendo una distribución binomial
-const randomBinomial = (n, p) => {
-	let x = 0;
-	for (let i = 0; i < n; i++) {
-		if (Math.random() < p) x++;
-	}
-	return x;
+// Función para generar un número aleatorio siguiendo una distribución exponencial
+const randomExponential = (lambda) => {
+	return -Math.log(1 - Math.random()) / lambda;
 };
 
 //Funcion para simular la demanda de un producto respecto al precio
@@ -581,8 +566,8 @@ const simularDemandaRespectoAlPrecio = async (req, res) => {
 		// Aplicando el test de Kolmogorov-Smirnov
 		if (
 			typeof normalCDF(mean, stdev) !== "function" ||
-			typeof geometricCDF(1 / mean) !== "function" ||
-			typeof binomialCDF(sample.length, mean / sample.length) !== "function"
+			typeof uniformCDF(minPrice, maxPrice) !== "function" ||
+			typeof exponentialCDF(1 / mean) !== "function"
 		) {
 			throw new Error(
 				"Una de las funciones CDF no está devolviendo una función"
@@ -590,19 +575,24 @@ const simularDemandaRespectoAlPrecio = async (req, res) => {
 		}
 
 		const dNormal = kolmogorovSmirnovTest(sample, normalCDF(mean, stdev));
-		const dGeometric = kolmogorovSmirnovTest(sample, geometricCDF(1 / mean));
-		const dBinomial = kolmogorovSmirnovTest(
+
+		const dUniform = kolmogorovSmirnovTest(
 			sample,
-			binomialCDF(sample.length, mean / sample.length)
+			uniformCDF(minPrice, maxPrice)
+		);
+		const dExponential = kolmogorovSmirnovTest(
+			sample,
+			exponentialCDF(1 / mean)
 		);
 
 		// Determinar qué distribución se ajusta mejor
-		const minD = Math.min(dNormal, dGeometric, dBinomial);
+		const minD = Math.min(dNormal, dUniform, dExponential);
+
 		let bestFit = "";
 
 		if (minD === dNormal) bestFit = "Normal";
-		else if (minD === dGeometric) bestFit = "Geométrica";
-		else if (minD === dBinomial) bestFit = "Binomial";
+		else if (minD === dUniform) bestFit = "Uniforme";
+		else if (minD === dExponential) bestFit = "Exponencial";
 
 		let intervaloAfectado;
 		for (const d of aggregateData) {
@@ -620,14 +610,13 @@ const simularDemandaRespectoAlPrecio = async (req, res) => {
 				sampleCounts.reduce((a, b) => a + b, 0);
 		}
 
-		let bestFitFunc;
+		let bestFitFunc; 
 		if (bestFit === "Normal") {
 			bestFitFunc = () => randomNormal(mean, stdev) * ajusteDemanda;
-		} else if (bestFit === "Geométrica") {
-			bestFitFunc = () => randomGeometric(1 / mean) * ajusteDemanda;
-		} else if (bestFit === "Binomial") {
-			bestFitFunc = () =>
-				randomBinomial(sample.length, mean / sample.length) * ajusteDemanda;
+		} else if (bestFit === "Uniforme") {
+			bestFitFunc = () => randomUniform(minPrice, maxPrice) * ajusteDemanda;
+		} else if (bestFit === "Exponencial") {
+			bestFitFunc = () => randomExponential(1 / mean) * ajusteDemanda;
 		} else {
 			throw new Error("Distribución desconocida");
 		}
@@ -656,8 +645,8 @@ const simularDemandaRespectoAlPrecio = async (req, res) => {
 			data: aggregateData,
 			kolmogorovSmirnovResults: {
 				dNormal,
-				dGeometric,
-				dBinomial,
+				dExponential,
+				dUniform,
 				bestFit,
 			},
 			mesesPromedioParaAgotarStock: promedioMeses,
