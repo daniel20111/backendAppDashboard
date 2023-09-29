@@ -24,7 +24,7 @@ const MovimientoSchema = Schema({
 	movimiento: {
 		type: String,
 		required: true,
-		enum: ["ENTRADA", "SALIDA"],
+		enum: ["ENTRADA", "SALIDA", "MERMA"],
 	},
 	verificado_por: {
 		type: Schema.Types.ObjectId,
