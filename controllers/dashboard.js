@@ -7,6 +7,7 @@ const Sucursal = require("../models/sucursal");
 const Cotizacion = require("../models/cotizacion");
 const Movimiento = require("../models/movimiento");
 const cron = require("node-cron");
+const mongoose = require("mongoose");
 
 //obtener dashboard por id de sucursal
 
@@ -24,10 +25,39 @@ const obtenerDashboardPorId = async (req, res = response) => {
 		}
 
 		// Obtener el dashboard asociado a la sucursal
-		const dashboard = await Dashboard.findOne({ sucursal: id }).populate(
-			"sucursal",
-			"nombre"
-		); // populate para obtener más detalles de la sucursal si es necesario
+		const dashboard = await Dashboard.findOne({ sucursal: id })
+			.populate("sucursal", "nombre")
+			.populate({
+				path: "movimientosRecientes",
+				model: "Movimiento",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
+						path: "stock",
+						populate: [
+							{
+								path: "producto",
+								model: "Producto",
+								select: "nombre img",
+							},
+							{
+								path: "sucursal",
+								model: "Sucursal",
+								select: "municipio",
+							},
+						],
+					},
+					{
+						path: "verificado_por",
+						model: "Usuario",
+						select: "nombre",
+					},
+				],
+			});
 
 		if (!dashboard) {
 			return res.status(404).json({
@@ -47,10 +77,43 @@ const obtenerDashboardPorId = async (req, res = response) => {
 	}
 };
 
+//obtener todos los dashboards
 const obtenerTodosLosDashboards = async (req, res = response) => {
 	try {
 		// Obtener todos los dashboards
-		const dashboards = await Dashboard.find().populate("sucursal", "municipio codigoSucursal" ); // populate para obtener más detalles de la sucursal si es necesario
+		const dashboards = await Dashboard.find()
+			.populate("sucursal", "municipio codigoSucursal")
+			.populate({
+				path: "movimientosRecientes",
+				model: "Movimiento",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre img",
+					},
+					{
+						path: "stock",
+						populate: [
+							{
+								path: "producto",
+								model: "Producto",
+								select: "nombre img",
+							},
+							{
+								path: "sucursal",
+								model: "Sucursal",
+								select: "municipio",
+							},
+						],
+					},
+					{
+						path: "verificado_por",
+						model: "Usuario",
+						select: "nombre",
+					},
+				],
+			});
 
 		// Enviar respuesta
 		return res.status(200).json({
@@ -161,44 +224,140 @@ const actualizarDashboard = async (sucursalId) => {
 		});
 
 		// Obtener los IDs de los stocks que pertenecen a la sucursal
-		const stocksDeSucursal = await Stock.find({ sucursal: sucursalId }, "_id");
-
+		const stocksDeSucursal = await Stock.find(
+			{ sucursal: mongoose.Types.ObjectId(sucursalId) },
+			"_id"
+		);
 		const stockIds = stocksDeSucursal.map((stock) => stock._id);
 
-		// Obtener todos los movimientos verificados que pertenecen a esos stocks
-		const totalMovimientosVerificados = await Movimiento.find({
+		// Obtenemos todos los tipos de movimientos para los stocks seleccionados
+		const totalMovimientosVerificados = await Movimiento.countDocuments({
 			stock: { $in: stockIds },
 			verificacion: { $ne: "EN ESPERA" },
-		}).countDocuments();
-
-		// Obtener todos los movimientos de tipo "MERMA" y que están verificados que pertenecen a esos stocks
-		const totalMermasVerificadas = await Movimiento.find({
+		});
+		const totalMermas = await Movimiento.countDocuments({
 			stock: { $in: stockIds },
 			movimiento: "MERMA",
-			verificacion: { $ne: "EN ESPERA" },
-		}).countDocuments();
-
-		// Obtener todos los movimientos que no están verificados que pertenecen a esos stocks
-		const totalMovimientosNoVerificados = await Movimiento.find({
+		});
+		const totalEntradas = await Movimiento.countDocuments({
+			stock: { $in: stockIds },
+			movimiento: "ENTRADA",
+		});
+		const totalSalidas = await Movimiento.countDocuments({
+			stock: { $in: stockIds },
+			movimiento: "SALIDA",
+		});
+		const totalErrores = await Movimiento.countDocuments({
+			stock: { $in: stockIds },
+			verificacion: "ERROR",
+		});
+		const totalMovimientosNoVerificados = await Movimiento.countDocuments({
 			stock: { $in: stockIds },
 			verificacion: "EN ESPERA",
-		}).countDocuments();
+		});
 
-		// Calcular los porcentajes
-		let porcentajeMermasPorcentaje = 0;
-		let ordenesProcesadasPorcentaje = 0;
+		let porcentajeMermas = 0;
+		let porcentajeEntradas = 0;
+		let porcentajeSalidas = 0;
+		let porcentajeErrores = 0;
+		let porcentajeVerificados = 0;
+		let porcentajePendientes = 0;
 
-		if (totalMovimientosVerificados > 0) {
-			porcentajeMermasPorcentaje =
-				(totalMermasVerificadas / totalMovimientosVerificados) * 100;
+		// Código existente para obtener contadores
+
+		const totalGeneralVerificacion =
+			totalMovimientosVerificados +
+			totalErrores +
+			totalMovimientosNoVerificados;
+		const totalGeneralMovimiento = totalMermas + totalEntradas + totalSalidas;
+
+		if (totalGeneralVerificacion > 0) {
+			porcentajeVerificados =
+				(totalMovimientosVerificados / totalGeneralVerificacion) * 100;
+			porcentajeErrores = (totalErrores / totalGeneralVerificacion) * 100;
+			porcentajePendientes =
+				(totalMovimientosNoVerificados / totalGeneralVerificacion) * 100;
 		}
 
-		if (totalMovimientosNoVerificados > 0) {
-			ordenesProcesadasPorcentaje =
-				(totalMovimientosVerificados /
-					(totalMovimientosVerificados + totalMovimientosNoVerificados)) *
-				100;
+		if (totalGeneralMovimiento > 0) {
+			porcentajeMermas = (totalMermas / totalGeneralMovimiento) * 100;
+			porcentajeEntradas = (totalEntradas / totalGeneralMovimiento) * 100;
+			porcentajeSalidas = (totalSalidas / totalGeneralMovimiento) * 100;
 		}
+
+		// Obtener las estadísticas del producto basadas solo en cajas
+		const productoStats = await Cotizacion.aggregate([
+			{ $match: { sucursal: sucursalId, vendido: true } },
+			{ $unwind: "$productos" },
+			{
+				$lookup: {
+					from: "productos", // Asegúrate de que este sea el nombre correcto de tu colección de productos
+					localField: "productos.producto",
+					foreignField: "_id",
+					as: "productoInfo",
+				},
+			},
+			{ $unwind: "$productoInfo" },
+			{
+				$group: {
+					_id: "$productoInfo.nombre",
+					totalVendidoCajas: { $sum: "$productos.cantidadCajas" },
+					totalMontoCajas: { $sum: "$productos.precioTotalCajas" },
+				},
+			},
+			{ $sort: { totalVendidoCajas: -1, totalMontoCajas: -1 } },
+		]);
+
+		let productoMasVendido = productoStats[0]?._id || null;
+		let productoMasVendidoCantidad = productoStats[0]?.totalVendidoCajas || 0;
+
+		let productoMenosVendido = productoStats.reverse()[0]?._id || null;
+		let productoMenosVendidoCantidad = productoStats[0]?.totalVendidoCajas || 0;
+
+		let productoMasRentable =
+			productoStats.sort((a, b) => b.totalMontoCajas - a.totalMontoCajas)[0]
+				?._id || null;
+		let productoMasRentableMonto = productoStats[0]?.totalMontoCajas || 0;
+
+		let productoMenosRentable = productoStats.reverse()[0]?._id || null;
+		let productoMenosRentableMonto = productoStats[0]?.totalMontoCajas || 0;
+
+		// 1. Intenta obtener el dashboard actual de la sucursal
+		let dashboardActual = await Dashboard.findOne({ sucursal: sucursalId });
+		let movimientosRecientesActuales = [];
+
+		if (dashboardActual) {
+			movimientosRecientesActuales = dashboardActual.movimientosRecientes;
+		}
+
+		// 2. Obtener los 10 últimos movimientos de la sucursal
+		const ultimosMovimientos = await Movimiento.find({
+			stock: { $in: stockIds },
+		})
+			.sort({ fecha: -1 })
+			.limit(10)
+			.select("_id");
+
+		const idsUltimosMovimientos = ultimosMovimientos.map(
+			(movimiento) => movimiento._id
+		);
+
+		// 3. Combinar y ordenar ambos conjuntos de movimientos
+		const movimientosCombinados = [
+			...movimientosRecientesActuales,
+			...idsUltimosMovimientos,
+		];
+		const movimientosOrdenados = await Movimiento.find({
+			_id: { $in: movimientosCombinados },
+		})
+			.sort({ fecha: -1 })
+			.limit(10)
+			.select("_id");
+
+		// 4. Tomar los 10 movimientos más recientes
+		const idsMovimientosActualizados = movimientosOrdenados.map(
+			(movimiento) => movimiento._id
+		);
 
 		// Actualizar el dashboard
 		await Dashboard.findOneAndUpdate(
@@ -209,9 +368,21 @@ const actualizarDashboard = async (sucursalId) => {
 				montoVentasDiario,
 				montoVentasPorMesAnual,
 				metasDeVentas,
-				oportunidadesNegocioPorcentaje,
-				porcentajeMermasPorcentaje,
-				ordenesProcesadasPorcentaje,
+				porcentajeVerificados,
+				porcentajePendientes,
+				porcentajeErrores,
+				porcentajeMermas,
+				porcentajeSalidas,
+				porcentajeEntradas,
+				productoMasVendido,
+				productoMasVendidoCantidad,
+				productoMenosVendido,
+				productoMenosVendidoCantidad,
+				productoMasRentable,
+				productoMasRentableMonto,
+				productoMenosRentable,
+				productoMenosRentableMonto,
+				movimientosRecientes: idsMovimientosActualizados,
 			},
 			{ new: true, upsert: true }
 		);
@@ -223,10 +394,10 @@ const actualizarDashboard = async (sucursalId) => {
 	}
 };
 
-//cron.schedule("*/1 * * * *", async () => {
-//	console.log("Actualizando todos los dashboards. Hora:", new Date());
-//	await actualizarTodosLosDashboards();
-//});
+// cron.schedule("*/1 * * * *", async () => {
+// 	console.log("Actualizando todos los dashboards. Hora:", new Date());
+// 	await actualizarTodosLosDashboards();
+// });
 
 module.exports = {
 	obtenerDashboardPorId,

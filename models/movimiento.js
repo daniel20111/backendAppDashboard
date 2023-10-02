@@ -38,6 +38,7 @@ const MovimientoSchema = Schema({
 	verificacion: {
 		type: String,
 		required: true,
+		enum: ["EN ESPERA", "VERIFICADO", "ERROR"],
 		default: "EN ESPERA",
 	},
 	stock: {

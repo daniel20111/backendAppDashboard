@@ -8,6 +8,7 @@ const {
 	obtenerMovimientosPorVenta,
 	simularVentas,
 	calculateEOQMetrics,
+	simulateMovements,
 } = require("../controllers/movimientos");
 
 const router = Router();
@@ -18,5 +19,7 @@ router.get("/venta/:ventaId", obtenerMovimientosPorVenta);
 
 router.post("/simular", [validarJWT, validarCampos], simularVentas);
 router.post("/eoq", calculateEOQMetrics);
+
+router.post("/simulate", simulateMovements);
 
 module.exports = router;

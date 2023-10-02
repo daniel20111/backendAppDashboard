@@ -1,6 +1,8 @@
 const { Movimiento } = require("../models");
 const { Producto } = require("../models");
 const { Stock } = require("../models");
+const { Usuario } = require("../models");
+const mongoose = require("mongoose");
 const moment = require("moment");
 const ss = require("simple-statistics");
 const math = require("mathjs");
@@ -523,7 +525,85 @@ const calculateAllEOQMetrics = async () => {
 	}
 };
 
+// Simulación de movimientos
+const simulateMovements = async (req, res) => {
+	let movements = [];
+
+	for (let i = 0; i < 200; i++) {
+		const [randomStock] = await Stock.aggregate([{ $sample: { size: 1 } }]);
+		const [randomUser] = await Usuario.aggregate([{ $sample: { size: 1 } }]);
+		const [randomVerifier] = await Usuario.aggregate([
+			{ $sample: { size: 1 } },
+		]);
+
+		const createdAt = moment()
+			.subtract(Math.random() * 60, "days")
+			.add(Math.floor(Math.random() * 24), "hours")
+			.add(Math.floor(Math.random() * 60), "minutes");
+		const verificationDays = Math.floor(Math.random() * 10);
+		const fechaVerificacion = moment(createdAt).add(
+			5 + verificationDays,
+			"days"
+		);
+
+		let randomType, randomVerification, cantidadCajas;
+		const randomPercentage = Math.random() * 100;
+
+		// Tipo de movimiento
+		if (randomPercentage < 30) {
+			randomType = "ENTRADA";
+		} else if (randomPercentage < 95) {
+			randomType = "SALIDA";
+		} else {
+			randomType = "MERMA";
+		}
+
+		// Verificación y cantidad de cajas según el tipo
+		const verificationChance = Math.random() * 100;
+		if (randomType === "ENTRADA") {
+			if (verificationChance < 5) {
+				randomVerification = "ERROR";
+			} else if (verificationChance < 90) {
+				randomVerification = "VERIFICADO";
+			} else {
+				randomVerification = "EN ESPERA";
+			}
+			cantidadCajas = Math.floor(70 + (Math.random() - 0.5) * 2 * 15);
+		} else if (randomType === "SALIDA") {
+			if (verificationChance < 5) {
+				randomVerification = "ERROR";
+			} else if (verificationChance < 100) {
+				randomVerification = "VERIFICADO";
+			} else {
+				randomVerification = "EN ESPERA";
+			}
+			cantidadCajas = Math.floor(50 + (Math.random() - 0.5) * 2 * 10);
+		} else {
+			randomVerification = "VERIFICADO"; // 100% verificado para "MERMA"
+			cantidadCajas = Math.floor(5 + (Math.random() - 0.5) * 2 * 3);
+		}
+
+		const newMovement = {
+			estado: true,
+			usuario: mongoose.Types.ObjectId(randomUser._id),
+			verificado_por: mongoose.Types.ObjectId(randomVerifier._id),
+			cantidadCajas: cantidadCajas,
+			movimiento: randomType,
+			fecha_verificacion: fechaVerificacion.toDate(),
+			verificacion: randomVerification,
+			stock: mongoose.Types.ObjectId(randomStock._id),
+			fecha: createdAt.toDate(),
+		};
+
+		movements.push(newMovement);
+	}
+
+	await Movimiento.insertMany(movements);
+	console.log("Movimientos insertados");
+};
 //cron.schedule("*/1 * * * *", calculateAllEOQMetrics);
+
+//cron.schedule("*/1 * * * *", simulateMovements);
 
 module.exports = {
 	obtenerMovimientos,
@@ -531,4 +611,6 @@ module.exports = {
 	obtenerMovimientosPorVenta,
 	simularVentas,
 	calculateEOQMetrics,
+	calculateAllEOQMetrics,
+	simulateMovements,
 };
