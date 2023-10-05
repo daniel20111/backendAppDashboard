@@ -13,6 +13,10 @@ const ProductosSchema = Schema({
 	precioTotalPiezas: Number,
 	precioTotalCajas: Number,
 	precioTotal: Number,
+	reservado: {
+		type: Boolean,
+		default: false,
+	},
 });
 
 const CotizacionSchema = Schema({
@@ -47,6 +51,11 @@ const CotizacionSchema = Schema({
 		required: true,
 	},
 	vendido: {
+		type: Boolean,
+		default: false,
+		required: true,
+	},
+	reservado: {
 		type: Boolean,
 		default: false,
 		required: true,

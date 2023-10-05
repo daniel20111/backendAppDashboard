@@ -12,7 +12,9 @@ const ClienteSchema = Schema({
 	ci: {
 		type: String,
 	},
-
+	telefono: {
+		type: String,
+	},
 	codigoCliente: {
 		type: String,
 		required: true,

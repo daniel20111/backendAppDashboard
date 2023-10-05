@@ -1,4 +1,4 @@
-const { Cotizacion, Cliente, Usuario, Producto } = require("../models"); // Asegúrate de importar el modelo Cotizacion
+const { Cotizacion, Cliente, Usuario, Producto, Stock } = require("../models"); // Asegúrate de importar el modelo Cotizacion
 const mongoose = require("mongoose");
 const simpleStats = require("simple-statistics");
 
@@ -115,6 +115,7 @@ const obtenerCotizacionPorId = async (req, res) => {
 	}
 };
 
+//Funcion para crear una cotizacion
 const crearCotizacion = async (req, res) => {
 	console.log("crearCotizacion");
 
@@ -296,6 +297,123 @@ const actualizarCotizacion = async (req, res) => {
 
 		res.status(500).json({
 			message: "Ocurrió un error al actualizar la cotización",
+			error,
+		});
+	}
+};
+
+//Funcion para reservar productos mediante una cotizacion
+
+const crearCotizacionReserva = async (req, res) => {
+	console.log("crearCotizacion");
+
+	const session = await mongoose.startSession();
+	session.startTransaction();
+
+	try {
+		const { clienteId, clienteNombre, nit, ci, telefono, productos } = req.body;
+		let cliente;
+
+		if (!productos) {
+			return res.status(400).json({ message: "Faltan campos requeridos" });
+		}
+
+		if (clienteId) {
+			cliente = clienteId;
+		} else if (clienteNombre && (nit || ci)) {
+			const contadorClientes = await Cliente.countDocuments({}).session(
+				session
+			);
+			const nuevoCodigoCliente = `CLIENTE${String(
+				contadorClientes + 1
+			).padStart(3, "0")}`;
+
+			const nuevoCliente = new Cliente({
+				nombre: clienteNombre,
+				telefono,
+				nit,
+				ci,
+				codigoCliente: nuevoCodigoCliente,
+			});
+
+			await nuevoCliente.save({ session });
+			cliente = nuevoCliente._id;
+		} else {
+			return res
+				.status(400)
+				.json({ message: "Información del cliente incompleta" });
+		}
+
+		const usuario = req.usuario._id;
+		const sucursal = req.usuario.sucursal._id;
+		const total = productos.reduce(
+			(acc, producto) => acc + producto.precioTotal,
+			0
+		);
+
+		// Verificación de stock
+		let todosProductosDisponibles = true;
+
+		for (let item of productos) {
+			const stocks = await Stock.find({ producto: item.producto }).session(
+				session
+			);
+			const totalStockCajas = stocks.reduce(
+				(acc, stock) => acc + stock.cantidadCajas,
+				0
+			);
+
+			if (totalStockCajas < item.cantidadCajas) {
+				todosProductosDisponibles = false;
+				item.reservado = true; // Marcar el producto como reservado
+			}
+		}
+
+		const nuevaCotizacion = new Cotizacion({
+			usuario,
+			cliente,
+			nit,
+			sucursal,
+			productos,
+			total,
+			reservado: !todosProductosDisponibles, // Marcar la cotización como reservada si algún producto está reservado
+		});
+
+		await nuevaCotizacion.save({ session });
+
+		await session.commitTransaction();
+		session.endSession();
+
+		await nuevaCotizacion
+			.populate("usuario", "nombre")
+			.populate("sucursal", "municipio")
+			.populate("cliente", "nombre nit ci codigoCliente estado")
+			.populate({
+				path: "productos.producto",
+				model: "Producto",
+				populate: [
+					{
+						path: "usuario",
+						model: "Usuario",
+						select: "nombre",
+					},
+					{
+						path: "categoria",
+						model: "Categoria",
+						select: "nombre",
+					},
+				],
+			})
+			.execPopulate();
+
+		res.status(201).json(nuevaCotizacion);
+		console.log("nuevaCotizacion", nuevaCotizacion);
+	} catch (error) {
+		console.error("Error en la creación de la cotización:", error);
+		await session.abortTransaction();
+		session.endSession();
+		res.status(500).json({
+			message: "Ocurrió un error al crear la cotización",
 			error,
 		});
 	}
@@ -610,7 +728,7 @@ const simularDemandaRespectoAlPrecio = async (req, res) => {
 				sampleCounts.reduce((a, b) => a + b, 0);
 		}
 
-		let bestFitFunc; 
+		let bestFitFunc;
 		if (bestFit === "Normal") {
 			bestFitFunc = () => randomNormal(mean, stdev) * ajusteDemanda;
 		} else if (bestFit === "Uniforme") {
@@ -665,4 +783,5 @@ module.exports = {
 	actualizarCotizacion,
 	simularCotizacionesMasivas,
 	simularDemandaRespectoAlPrecio,
+	crearCotizacionReserva,
 };
