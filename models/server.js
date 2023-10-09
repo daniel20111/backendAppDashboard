@@ -27,7 +27,7 @@ class Server {
 			clientes: "/api/clientes",
 			facturas: "/api/facturas",
 			dashboard: "/api/dashboard",
-
+			proveedores: "/api/proveedores",
 		};
 
 		// Conectar a base de datos
@@ -82,6 +82,7 @@ class Server {
 		this.app.use(this.paths.clientes, require("../routes/clientes"));
 		this.app.use(this.paths.facturas, require("../routes/facturas"));
 		this.app.use(this.paths.dashboard, require("../routes/dashboard"));
+		this.app.use(this.paths.proveedores, require("../routes/proveedores"));
 	}
 
 	listen() {

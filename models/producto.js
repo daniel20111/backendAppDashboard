@@ -60,6 +60,11 @@ const ProductoSchema = Schema({
 		required: true,
 		unique: true,
 	},
+	//modelo de proveedor
+	proveedor: {
+		type: Schema.Types.ObjectId,
+		ref: "Proveedor",
+	},
 });
 
 ProductoSchema.methods.toJSON = function () {

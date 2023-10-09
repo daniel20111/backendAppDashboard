@@ -152,7 +152,8 @@ const actualizarProducto = async (req, res = response) => {
 	// Obtener la información actualizada del producto
 	await producto
 		.populate("usuario", "nombre") // Obtener información del usuario relacionado
-		.populate("categoria", "nombre") // Obtener información de la categoría relacionada
+		.populate("categoria", "nombre")
+		.populate("proveedor")// Obtener información de la categoría relacionada
 		.execPopulate();
 
 	// Devolver el producto actualizado
