@@ -87,6 +87,46 @@ const obtenerMovimientosPorVenta = async (req, res = response) => {
 	}
 };
 
+const obtenerMovimientosPorPedido = async (req, res = response) => {
+	const { pedidoId } = req.params; // Suponiendo que envías el ID de la venta como un parámetro en la URL
+
+	try {
+		const movimientos = await Movimiento.find({ pedido: pedidoId })
+			.sort({ fecha: -1 })
+			.populate("usuario", "nombre")
+			.populate({
+				path: "stock",
+				populate: [
+					{
+						path: "producto",
+						model: "Producto",
+						select: "nombre img",
+					},
+					{
+						path: "sucursal",
+						model: "Sucursal",
+						select: "municipio",
+					},
+				],
+			})
+			.populate({
+				path: "verificado_por",
+				model: "Usuario",
+				select: "nombre",
+			});
+
+		res.json({
+			total: movimientos.length,
+			movimientos,
+		});
+	} catch (error) {
+		res.status(500).json({
+			msg: "Ocurrió un error al obtener los movimientos por pedido",
+			error,
+		});
+	}
+};
+
 const buscarMovimientos = async (req, res = response) => {
 	const nombreProducto = req.query.nombreProducto;
 
@@ -609,6 +649,7 @@ module.exports = {
 	obtenerMovimientos,
 	buscarMovimientos,
 	obtenerMovimientosPorVenta,
+	obtenerMovimientosPorPedido,
 	simularVentas,
 	calculateEOQMetrics,
 	calculateAllEOQMetrics,

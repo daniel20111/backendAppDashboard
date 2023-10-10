@@ -55,6 +55,10 @@ const MovimientoSchema = Schema({
 		type: Schema.Types.ObjectId,
 		ref: "Venta",
 	},
+	pedido: {
+		type: Schema.Types.ObjectId,
+		ref: "Pedido",
+	},
 	traspaso: {
 		type: Schema.Types.ObjectId,
 		ref: "Traspaso",

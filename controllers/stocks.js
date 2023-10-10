@@ -61,6 +61,9 @@ const obtenerTodosLosStocks = async (req, res = response) => {
 						path: "usuario",
 						select: "nombre",
 					},
+					{
+						path: "proveedor",
+					},
 				],
 			})
 			.populate("sucursal", "municipio"),

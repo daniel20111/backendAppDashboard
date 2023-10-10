@@ -13,6 +13,8 @@ const Cotizacion = require("./cotizacion");
 const Venta = require("./venta");
 const Cliente = require("./cliente");
 const Factura = require("./factura");
+const Proveedor = require("./proveedor");
+const Pedido = require("./pedido");
 
 module.exports = {
   Categoria,
@@ -30,4 +32,6 @@ module.exports = {
   Venta,
   Cliente,
   Factura,
+  Proveedor,
+  Pedido,
 };

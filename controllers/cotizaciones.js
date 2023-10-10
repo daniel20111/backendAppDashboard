@@ -28,6 +28,10 @@ const obtenerCotizaciones = async (req, res) => {
 						model: "Categoria",
 						select: "nombre",
 					},
+					{
+						path: "proveedor",
+						model: "Proveedor",
+					},
 				],
 			});
 
@@ -90,6 +94,10 @@ const obtenerCotizacionPorId = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
+					},
+					{
+						path: "proveedor",
+						model: "Proveedor",
 					},
 				],
 			});
@@ -197,6 +205,10 @@ const crearCotizacion = async (req, res) => {
 						model: "Categoria",
 						select: "nombre",
 					},
+					{
+						path: "proveedor",
+						model: "Proveedor",
+					},
 				],
 			})
 			.execPopulate();
@@ -281,6 +293,10 @@ const actualizarCotizacion = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
+					},
+					{
+						path: "proveedor",
+						model: "Proveedor",
 					},
 				],
 			})
@@ -401,6 +417,10 @@ const crearCotizacionReserva = async (req, res) => {
 						path: "categoria",
 						model: "Categoria",
 						select: "nombre",
+					},
+					{
+						path: "proveedor",
+						model: "Proveedor",
 					},
 				],
 			})

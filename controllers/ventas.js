@@ -21,6 +21,7 @@ const obtenerVentas = async (req, res) => {
 						populate: [
 							{ path: "usuario", model: "Usuario", select: "nombre" },
 							{ path: "categoria", model: "Categoria", select: "nombre" },
+							{ path: "proveedor", model: "Proveedor" },
 						],
 					},
 					{ path: "cliente", model: "Cliente" },
@@ -94,6 +95,7 @@ const obtenerVentaPorId = async (req, res) => {
 						populate: [
 							{ path: "usuario", model: "Usuario", select: "nombre" },
 							{ path: "categoria", model: "Categoria", select: "nombre" },
+							{ path: "proveedor", model: "Proveedor" },
 						],
 					},
 					{ path: "cliente", model: "Cliente" },
@@ -469,6 +471,7 @@ const pagarVenta = async (req, res) => {
 						populate: [
 							{ path: "usuario", model: "Usuario", select: "nombre" },
 							{ path: "categoria", model: "Categoria", select: "nombre" },
+							{ path: "proveedor", model: "Proveedor" },
 						],
 					},
 					{ path: "cliente", model: "Cliente" },

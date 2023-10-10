@@ -1,5 +1,9 @@
 const { response } = require("express");
-const { Movimiento, Stock } = require("../models");
+const { Movimiento, Stock, Cotizacion } = require("../models");
+const axios = require("axios");
+const accountSid = "AC56ebeff77124d087f12a859d2b410d5c";
+const authToken = process.env.WHATSAPP_TOKEN;
+const client = require("twilio")(accountSid, authToken);
 
 const obtenerEntradas = async (req, res = response) => {
 	const query = { estado: true, movimiento: "ENTRADA" };
@@ -158,6 +162,26 @@ const actualizarEntrada = async (req, res = response) => {
 		await session.commitTransaction();
 		session.endSession();
 
+		// Verifica si el campo pedido no es null
+		if (movimiento.pedido !== null) {
+			// Busca todas las cotizaciones donde el producto está reservado
+			const cotizaciones = await Cotizacion.find({
+				"productos.producto": movimiento.stock.producto._id,
+				"productos.reservado": true,
+			}).populate("cliente", "telefono"); // Asume que el número de WhatsApp está almacenado en el cliente
+
+			// Enviar un mensaje de WhatsApp a los clientes que han reservado el producto
+			for (const cotizacion of cotizaciones) {
+				const message = `El producto ${movimiento.stock.producto.nombre} ahora está disponible para la compra.`;
+				console.log(
+					`Enviando mensaje a cliente con número ${cotizacion.cliente.telefono}: ${message}`
+				);
+
+				// Envía el mensaje usando Twilio
+				await sendMessageTwilio(cotizacion.cliente.telefono, message);
+			}
+		}
+
 		res.json(movimiento);
 	} catch (error) {
 		await session.abortTransaction();
@@ -169,7 +193,19 @@ const actualizarEntrada = async (req, res = response) => {
 	}
 };
 
+const sendMessageTwilio = async (phoneNumber, message) => {
+	try {
+		await client.messages.create({
+			body: message,
+			from: "whatsapp:+14155238886", // Este es el número de teléfono de Twilio
+			to: `whatsapp:+591${phoneNumber}`,
+		});
 
+		console.log(`Mensaje enviado a ${phoneNumber}`);
+	} catch (error) {
+		console.log("Error al enviar el mensaje:", error);
+	}
+};
 
 module.exports = {
 	obtenerEntradas,

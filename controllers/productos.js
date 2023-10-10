@@ -1,5 +1,11 @@
 const { response } = require("express");
-const { Producto, Categoria, Sucursal, Stock } = require("../models");
+const {
+	Producto,
+	Categoria,
+	Sucursal,
+	Stock,
+	Proveedor,
+} = require("../models");
 const mongoose = require("mongoose");
 
 // Función para obtener todos los productos
@@ -13,7 +19,9 @@ const obtenerProductos = async (req, res = response) => {
 		Producto.find(query)
 			.sort("-fecha") // Ordenar por fecha descendente
 			.populate("usuario", "nombre") // Obtener información del usuario relacionado
-			.populate("categoria", "nombre"), // Obtener información de la categoría relacionada
+			.populate("categoria", "nombre")
+			.populate("proveedor"),
+		// Obtener información de la categoría relacionada
 		//.skip(Number(desde))
 		//.limit(Number(limite)),
 	]);
@@ -30,7 +38,8 @@ const obtenerProducto = async (req, res = response) => {
 	const { id } = req.params;
 	const producto = await Producto.findById(id)
 		.populate("usuario", "nombre") // Obtener información del usuario relacionado
-		.populate("categoria", "nombre"); // Obtener información de la categoría relacionada
+		.populate("categoria", "nombre")
+		.populate("proveedor"); // Obtener información de la categoría relacionada
 
 	// Devolver el producto
 	res.json(producto);
@@ -41,7 +50,7 @@ const crearProducto = async (req, res = response) => {
 	session.startTransaction();
 
 	try {
-		const { estado, usuario, categoria, ...body } = req.body;
+		const { estado, usuario, categoria, proveedor, ...body } = req.body;
 
 		// Verificar si el producto ya existe
 		const productoDB = await Producto.findOne({ nombre: body.nombre }).session(
@@ -64,6 +73,17 @@ const crearProducto = async (req, res = response) => {
 			session.endSession();
 			return res.status(400).json({
 				msg: `La categoría seleccionada no existe`,
+			});
+		}
+
+		//Obtener la información del proveedor seleccionado
+		const proveedorDB = await Proveedor.findById(proveedor).session(session);
+
+		if (!proveedorDB) {
+			await session.abortTransaction();
+			session.endSession();
+			return res.status(400).json({
+				msg: `El proveedor seleccionado no existe`,
 			});
 		}
 
@@ -92,6 +112,7 @@ const crearProducto = async (req, res = response) => {
 			nombre: body.nombre,
 			usuario: req.usuario._id,
 			categoria: categoria,
+			proveedor: proveedor,
 			precioCaja: body.precioCaja || categoriaDB.precioCaja,
 			precioPorUnidad: body.precioPorUnidad || categoriaDB.precioPorUnidad,
 			codigoProducto, // Añadir el código del producto
@@ -125,7 +146,8 @@ const crearProducto = async (req, res = response) => {
 
 		await producto
 			.populate("usuario", "nombre") // Obtener información del usuario relacionado
-			.populate("categoria", "nombre") // Obtener información de la categoría relacionada
+			.populate("categoria", "nombre")
+			.populate("proveedor") // Obtener información de la categoría relacionada
 			.execPopulate();
 
 		res.status(201).json(producto);
@@ -153,7 +175,7 @@ const actualizarProducto = async (req, res = response) => {
 	await producto
 		.populate("usuario", "nombre") // Obtener información del usuario relacionado
 		.populate("categoria", "nombre")
-		.populate("proveedor")// Obtener información de la categoría relacionada
+		.populate("proveedor") // Obtener información de la categoría relacionada
 		.execPopulate();
 
 	// Devolver el producto actualizado

@@ -9,6 +9,7 @@ const {
 	simularVentas,
 	calculateEOQMetrics,
 	simulateMovements,
+	obtenerMovimientosPorPedido,
 } = require("../controllers/movimientos");
 
 const router = Router();
@@ -16,6 +17,7 @@ const router = Router();
 router.get("/", obtenerMovimientos);
 router.get("/buscar", buscarMovimientos);
 router.get("/venta/:ventaId", obtenerMovimientosPorVenta);
+router.get("/pedido/:pedidoId", obtenerMovimientosPorPedido);
 
 router.post("/simular", [validarJWT, validarCampos], simularVentas);
 router.post("/eoq", calculateEOQMetrics);
