@@ -14,16 +14,18 @@ const crearPedido = async (req, res) => {
 	const session = await mongoose.startSession();
 	session.startTransaction();
 
+	let transactionCommitted = false;
+
 	try {
 		const { productos } = req.body;
-		const creado_por = req.usuario._id; // Asumiendo que el usuario viene en el request
+		const creado_por = req.usuario._id;
 
-		// Agrupando productos por proveedor
 		const proveedores = {};
+
 		for (const detalle of productos) {
 			const productoDB = await Producto.findById(detalle.producto)
 				.session(session)
-				.populate("categoria") // Agregando el populate
+				.populate("categoria")
 				.populate("proveedor");
 
 			if (!productoDB) {
@@ -42,8 +44,8 @@ const crearPedido = async (req, res) => {
 			});
 		}
 
-		// Creando un pedido por cada proveedor
 		const pedidosCreados = [];
+
 		for (const proveedorId in proveedores) {
 			const pedidoData = {
 				proveedor: proveedorId,
@@ -53,8 +55,14 @@ const crearPedido = async (req, res) => {
 
 			const pedido = new Pedido(pedidoData);
 			await pedido.save({ session });
+			pedidosCreados.push(pedido);
+		}
 
-			// Realizar el populate aquí antes de agregarlo al array
+		await session.commitTransaction();
+		transactionCommitted = true;
+		session.endSession();
+
+		for (const pedido of pedidosCreados) {
 			await pedido
 				.populate({
 					path: "proveedor",
@@ -101,18 +109,17 @@ const crearPedido = async (req, res) => {
 							],
 						},
 					],
-				});
-
-			pedidosCreados.push(pedido);
+				})
+				.execPopulate();
 		}
-
-		await session.commitTransaction();
-		session.endSession();
 
 		res.status(201).json(pedidosCreados);
 	} catch (error) {
-		await session.abortTransaction();
+		if (!transactionCommitted) {
+			await session.abortTransaction();
+		}
 		session.endSession();
+
 		res.status(500).json({
 			msg: "Error al crear los pedidos",
 			error: error.message,
@@ -263,6 +270,10 @@ const crearMovimientos = async (req, res) => {
 			const movimiento = new Movimiento(movimientoData);
 			await movimiento.save({ session });
 			movimientosCreados.push(movimiento._id); // Guardamos solo el _id para añadir al pedido
+
+			stock.entranteCajas += movimiento.cantidadCajas;
+
+			await stock.save();
 		}
 
 		// Actualizar el pedido con los movimientos y cambiar el campo `pedido` a `true`

@@ -397,6 +397,7 @@ const actualizarDashboard = async (sucursalId) => {
 // cron.schedule("*/1 * * * *", async () => {
 // 	console.log("Actualizando todos los dashboards. Hora:", new Date());
 // 	await actualizarTodosLosDashboards();
+// 	console.log("Actualización de los dashboards completada");
 // });
 
 module.exports = {

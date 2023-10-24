@@ -14,10 +14,10 @@ const CategoriaSchema = Schema({
 		ref: "Usuario",
 		required: true,
 	},
-  material: {
+	material: {
 		type: String,
 		required: [true, "El material es obligatorio"],
-    enum: ["ceramica", "porcelanato"],
+		enum: ["ceramica", "porcelanato"],
 	},
 	dimensiones: {
 		type: String,

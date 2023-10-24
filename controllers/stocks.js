@@ -66,7 +66,13 @@ const obtenerTodosLosStocks = async (req, res = response) => {
 					},
 				],
 			})
-			.populate("sucursal", "municipio"),
+			.populate({
+				path: "sucursal",
+				populate: {
+					path: "usuario",
+					select: "nombre",
+				},
+			}),
 	]);
 
 	res.json({
@@ -104,9 +110,7 @@ const obtenerStocksPorId = async (req, res = response) => {
 	// Realizar la consulta para obtener los stocks que coincidan con el ID proporcionado
 	const [total, stocks] = await Promise.all([
 		Stock.countDocuments(query),
-		Stock.find(query)
-			.populate("producto", "nombre")
-			.populate("sucursal", "nombre"),
+		Stock.find(query).populate("producto", "nombre").populate("sucursal"),
 	]);
 
 	res.json({
@@ -121,7 +125,13 @@ const obtenerStockPorId = async (req, res) => {
 	try {
 		const stock = await Stock.findById(id)
 			.populate("producto", "nombre")
-			.populate("sucursal", "nombre");
+			.populate({
+				path: "sucursal",
+				populate: {
+					path: "usuario",
+					select: "nombre",
+				},
+			});
 
 		if (!stock) {
 			return res.status(404).json({
@@ -175,6 +185,38 @@ const poblarHistorialAleatorio = async (req, res = response) => {
 		res.status(500).json({
 			msg: "Ocurrió un error al poblar el historial. Por favor, inténtalo de nuevo.",
 		});
+	}
+};
+
+//poblar todos los stocks
+const poblarHistorialAleatorioTodosLosStocks = async () => {
+	const session = await Stock.startSession();
+	session.startTransaction();
+
+	try {
+		// Obtenemos todos los stocks
+		const allStocks = await Stock.find({}).session(session);
+
+		if (!allStocks || allStocks.length === 0) {
+			await session.abortTransaction();
+			session.endSession();
+			console.log("No se encontraron stocks");
+			return;
+		}
+
+		// Actualizamos cada stock
+		for (let stock of allStocks) {
+			stock.historial = generateRandomHistorial();
+			await stock.save({ session });
+		}
+
+		await session.commitTransaction();
+		session.endSession();
+		console.log("Historial actualizado exitosamente para todos los stocks");
+	} catch (error) {
+		await session.abortTransaction();
+		session.endSession();
+		console.error("Error al poblar el historial:", error);
 	}
 };
 
@@ -251,7 +293,13 @@ const actualizarTodosLosStocks = async () => {
 };
 
 // Programar la tarea para que se ejecute cada cierto tiempo (por ejemplo, cada día a las 2 a.m.)
-//cron.schedule("*/5 * * * *", actualizarTodosLosStocks);
+// cron.schedule("*/1 * * * *", actualizarTodosLosStocks);
+
+// cron.schedule("*/1 * * * *", () => {
+// 	console.log("Ejecutando tarea cada minuto");
+// 	poblarHistorialAleatorioTodosLosStocks();
+// 	console.log("Proceso terminado");
+// });
 
 module.exports = {
 	obtenerTodosLosStocks,

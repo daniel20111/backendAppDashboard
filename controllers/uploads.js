@@ -223,7 +223,8 @@ const actualizarImagenCloudinary = async (req, res = response) => {
 		case "productos":
 			modelo = await Producto.findById(id)
 				.populate("usuario", "nombre")
-				.populate("categoria", "nombre");
+				.populate("categoria", "nombre")
+				.populate("proveedor");
 
 			console.log(modelo);
 

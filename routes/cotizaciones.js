@@ -9,7 +9,8 @@ const {
 	actualizarCotizacion,
 	simularCotizacionesMasivas,
 	simularDemandaRespectoAlPrecio,
-	crearCotizacionReserva
+	crearCotizacionReserva,
+	simularCotizacionesMasivasTodasLasSucursales,
 } = require("../controllers/cotizaciones");
 
 const router = Router();
@@ -29,6 +30,13 @@ router.post("/", [validarJWT, validarCampos], crearCotizacion);
 
 // Simular cotizaciones masivas - privado - solo admin
 router.post("/simular", [validarJWT, esAdminRole], simularCotizacionesMasivas);
+
+// Simular cotizaciones masivas - privado - solo admin
+router.post(
+	"/simularTodas",
+	[validarJWT, esAdminRole],
+	simularCotizacionesMasivasTodasLasSucursales
+);
 
 // Crear cotización reserva - privado - cualquier persona con un token válido
 router.post("/reservar", [validarJWT, validarCampos], crearCotizacionReserva);

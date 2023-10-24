@@ -1,4 +1,11 @@
-const { Cotizacion, Cliente, Usuario, Producto, Stock } = require("../models"); // Asegúrate de importar el modelo Cotizacion
+const {
+	Cotizacion,
+	Cliente,
+	Usuario,
+	Producto,
+	Stock,
+	Sucursal,
+} = require("../models"); // Asegúrate de importar el modelo Cotizacion
 const mongoose = require("mongoose");
 const simpleStats = require("simple-statistics");
 
@@ -544,6 +551,113 @@ const simularCotizacionesMasivas = async (req, res) => {
 	}
 };
 
+const simularCotizacionesMasivasTodasLasSucursales = async (req, res) => {
+	try {
+		console.log("Iniciando simulación de cotizaciones...");
+		const usuarioId = req.usuario._id;
+		const usuario = await Usuario.findById(usuarioId);
+
+		if (!usuario) {
+			console.log("Usuario no encontrado");
+			return;
+		}
+
+		// Obtener todas las sucursales
+		const sucursales = await Sucursal.find({});
+		if (!sucursales || sucursales.length === 0) {
+			console.log("No se encontraron sucursales");
+			return;
+		}
+
+		const todasCotizaciones = [];
+
+		for (const sucursal of sucursales) {
+			const sucursalId = sucursal._id;
+			console.log(`Procesando para Sucursal ID: ${sucursalId}`);
+
+			for (let i = 0; i < 50; i++) {
+				console.log(`Iteración número ${i + 1}`);
+
+				const [clienteAleatorio] = await Cliente.aggregate([
+					{ $sample: { size: 1 } },
+				]);
+				console.log(`Cliente aleatorio seleccionado: ${clienteAleatorio._id}`);
+
+				const randomSize = Math.floor(Math.random() * 5) + 3;
+				console.log(
+					`Número aleatorio de productos a seleccionar: ${randomSize}`
+				);
+
+				const randomProductos = await Producto.aggregate([
+					{ $sample: { size: randomSize } },
+				]);
+				console.log("Productos aleatorios seleccionados");
+
+				let productos = [];
+				let total = 0;
+
+				randomProductos.forEach((producto) => {
+					console.log(`Procesando producto: ${producto._id}`);
+
+					const cantidadPiezas = 0;
+					const precioUnitarioPiezas = producto.precioPorUnidad;
+
+					const precioTotalPiezas = cantidadPiezas * precioUnitarioPiezas;
+
+					const cantidadCajas = Math.floor(Math.random() * 10) + 1;
+
+					// Añadiendo variación al precio unitario de las cajas
+					const variacionCajas = 0.85 + Math.random() * 0.3; // Variación de -15% a +15%
+
+					const precioUnitarioCajas = producto.precioCaja * variacionCajas;
+
+					const precioTotalCajas = cantidadCajas * precioUnitarioCajas;
+					const precioTotal = precioTotalCajas; // Como no estamos manejando piezas
+
+					productos.push({
+						producto: producto._id,
+						cantidadCajas,
+						cantidadPiezas,
+						precioUnitarioPiezas,
+						precioUnitarioCajas,
+						precioTotalPiezas,
+						precioTotalCajas,
+						precioTotal,
+					});
+
+					total += precioTotal;
+				});
+
+				console.log("Creando nuevo documento de Cotización...");
+
+				const cotizacion = new Cotizacion({
+					usuario: mongoose.Types.ObjectId(usuarioId),
+					cliente: mongoose.Types.ObjectId(clienteAleatorio._id),
+					sucursal: mongoose.Types.ObjectId(sucursalId),
+					fecha: generarFechaAleatoria(),
+					vendido: true,
+					productos,
+					total,
+				});
+
+				// Al final del bucle interno, guardar la cotización
+				await cotizacion.save();
+				console.log("Cotización guardada con éxito.");
+
+				todasCotizaciones.push(cotizacion);
+			}
+		}
+
+		console.log(
+			"Todas las cotizaciones han sido creadas y guardadas para todas las sucursales."
+		);
+		res.status(201).json({ todasCotizaciones });
+	} catch (error) {
+		console.error("Error: ", error);
+		res.status(500).json({ error: "Hubo un error al crear las cotizaciones" });
+	}
+};
+
 // Función para determinar la distribución de probabilidad de una muestra
 const kolmogorovSmirnovTest = (sample, theoreticalCDF) => {
 	if (typeof theoreticalCDF !== "function") {
@@ -804,4 +918,5 @@ module.exports = {
 	simularCotizacionesMasivas,
 	simularDemandaRespectoAlPrecio,
 	crearCotizacionReserva,
+	simularCotizacionesMasivasTodasLasSucursales,
 };

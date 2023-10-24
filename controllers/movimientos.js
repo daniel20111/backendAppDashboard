@@ -464,7 +464,6 @@ const calculateAllEOQMetrics = async () => {
 
 			const movimientos = await Movimiento.find({
 				stock: stock._id,
-				venta: { $ne: null },
 				fecha: { $gte: lastYear },
 			});
 
@@ -472,7 +471,7 @@ const calculateAllEOQMetrics = async () => {
 			movimientos.forEach((mov) => muestras.push(mov.cantidadCajas));
 			muestras.sort((a, b) => a - b);
 
-			if (muestras.length === 0) {
+			if (muestras.length == 0) {
 				console.log(
 					`No hay datos suficientes para el stock con ID ${stock._id}`
 				);
@@ -641,6 +640,7 @@ const simulateMovements = async (req, res) => {
 	await Movimiento.insertMany(movements);
 	console.log("Movimientos insertados");
 };
+
 //cron.schedule("*/1 * * * *", calculateAllEOQMetrics);
 
 //cron.schedule("*/1 * * * *", simulateMovements);
