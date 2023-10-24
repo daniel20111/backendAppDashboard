@@ -1,11 +1,10 @@
-const Role = require("../models/role");
 const {
 	Usuario,
 	Categoria,
 	Producto,
 	Stock,
 	Movimiento,
-	Sucursal
+	Sucursal,
 } = require("../models");
 const { query } = require("express");
 
@@ -67,8 +66,6 @@ const existeSucursalPorId = async (id) => {
 	}
 };
 
-
-
 const validarIdProductoSucursal = async (value) => {
 	const producto = await existeProductoPorId(value);
 	const sucursal = await existeSucursalPorId(value);
@@ -95,7 +92,6 @@ const existeStockPorId = async (id) => {
 		return false;
 	}
 };
-
 
 const existeCantidadTraspaso = async (body) => {
 	const { productos } = body;
@@ -135,11 +131,10 @@ const existeCantidadTraspaso = async (body) => {
 	console.log(contador);
 	console.log(productos.length);
 
-	if (contador !== productos.length){
+	if (contador !== productos.length) {
 		throw new Error("No hay suficientes productos en el stock");
 	}
 };
-
 
 /**
  * Validar colecciones permitidas
